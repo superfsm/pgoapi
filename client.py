@@ -66,16 +66,16 @@ class Client:
         return (self._lat, self._lng)
 
     # Move to object
-    def move_to_obj(self, obj):
-        self.move_to(obj['lat'], obj['lng'])
+    def move_to_obj(self, obj, speed = 20):
+        self.move_to(obj['lat'], obj['lng'], speed = speed)
 
-    # Move to position with at most 20m/s
-    def move_to(self, lat, lng):
+    # Move to position at speed(m)/s
+    def move_to(self, lat, lng, speed = 20):
         a = (self._lat, self._lng)
         b = (lat, lng)
 
         dist = great_circle(a, b).meters
-        steps = int(dist / 20) + 1
+        steps = int(dist / speed) + 1
 
         delta_lat = (lat - self._lat) / steps
         delta_lng = (lng - self._lng) / steps

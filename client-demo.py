@@ -135,12 +135,11 @@ def main():
     while True:
         client.scan()
         client.sort_map()
-        while len(client.pokestop):
-            i = client.pokestop.pop(0)
+        print "# of stop =", len(client.pokestop)
+        for i in client.pokestop:
             print 'Moving to Pokestop', i['id'], i['dist']
             client.move_to_obj(i)
             client.spin(i)
-            client.sort_map()
             time.sleep(5)
 
     ################################################ Need to move to client.py
