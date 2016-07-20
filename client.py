@@ -65,22 +65,23 @@ class Client:
     def get_position(self):
         return (self._lat, self._lng)
 
-    # Move to object with at most 50m/s
+    # Move to object
     def move_to_obj(self, obj):
         self.move_to(obj['lat'], obj['lng'])
 
-    # Move to position with at most 50m/s
+    # Move to position with at most 20m/s
     def move_to(self, lat, lng):
         a = (self._lat, self._lng)
         b = (lat, lng)
 
         dist = great_circle(a, b).meters
-        steps = int(dist / 50) + 1
+        steps = int(dist / 20) + 1
 
         delta_lat = (lat - self._lat) / steps
         delta_lng = (lng - self._lng) / steps
 
         for step in range(steps):
+            log.info('Step {}'.format(step))
             self.jump_to(self._lat + delta_lat, self._lng + delta_lng)
             time.sleep(1)
 
@@ -98,8 +99,6 @@ class Client:
         self._lng_f2i = f2i(lng)
         # self._alt_f2i = f2i(alt)
 
-        self._sort_map()
-
     # Distance to an object
     def _dist_to_obj(self, obj):
         a = (self._lat, self._lng)
@@ -107,7 +106,7 @@ class Client:
         return great_circle(a, b).meters
 
     # Sort the items on map by distance
-    def _sort_map(self):
+    def sort_map(self):
         for i in self.pokestop:
             i['dist'] = self._dist_to_obj(i)
         self.pokestop = sorted(self.pokestop , key=lambda k: k['dist'])
@@ -153,9 +152,9 @@ class Client:
                     wild['expire_ms'] = time.time() * 1000 + wild_pokemon['time_till_hidden_ms']
                     self.wild.append(wild)
 
-        self._sort_map()
         log.debug('Response dictionary: \n\r{}'.format(json.dumps(resp, indent=2)))
 
+    # Spin the pokestop
     def spin(self, pokestop):
         self._api.fort_search(fort_id=pokestop['id'],
             fort_latitude=pokestop['lat'],
@@ -164,8 +163,15 @@ class Client:
             player_longitude=self._lng_f2i)
 
         resp = self._api.call()
-        log.info('Response dictionary: \n\r{}'.format(json.dumps(resp, indent=2)))
 
+        log.debug('Response dictionary: \n\r{}'.format(json.dumps(resp, indent=2)))
+
+        if 'experience_awarded' in resp['responses']['FORT_SEARCH']:
+            log.info('exp = {}'.format(resp['responses']['FORT_SEARCH']['experience_awarded']))
+        else:
+            log.info('no exp')
+
+    # Login
     def login(self, auth_service, username, password):
         return self._api.login(auth_service, username, password)
 
@@ -182,7 +188,6 @@ class Client:
 
         # Save items in self.item
         for inventory_item in resp['responses']['GET_INVENTORY']['inventory_delta']['inventory_items']:
-            print inventory_item
 
             try:
                 if inventory_item['inventory_item_data']['item']['item'] == 1:

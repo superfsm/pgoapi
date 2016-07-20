@@ -30,6 +30,7 @@ import logging
 import requests
 import argparse
 import getpass
+import time
 
 from client import Client
 
@@ -92,13 +93,11 @@ def init_config():
 def main():
     # log settings
     # log format
-    logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(module)10s] [%(levelname)5s] %(message)s')
-    # log level for http request class
+    logging.basicConfig(level=logging.ERROR, format='%(asctime)s [%(module)10s] [%(levelname)5s] %(message)s')
     logging.getLogger("requests").setLevel(logging.WARNING)
-    # log level for main pgoapi class
-    logging.getLogger("pgoapi").setLevel(logging.INFO)
-    # log level for internal pgoapi class
-    logging.getLogger("rpc_api").setLevel(logging.INFO)
+    logging.getLogger("pgoapi").setLevel(logging.WARNING)
+    logging.getLogger("rpc_api").setLevel(logging.WARNING)
+    logging.getLogger("client").setLevel(logging.INFO)
 
     config = init_config()
     if not config:
@@ -122,6 +121,8 @@ def main():
     if not client.login(config.auth_service, config.username, config.password):
         return
 
+    ################################################ 
+
     # Operate on client
     # client.move_to(*position)
     # client.scan()
@@ -131,14 +132,16 @@ def main():
 
     ################################################ Test code
     client.jump_to(*position)
-    client.scan()
     while True:
-        i = client.pokestop[0]
-        print i['id'], i['enabled'], i['dist']
-        client.move_to_obj(i)
-        client.spin(i)
-        client.scan
-        break
+        client.scan()
+        client.sort_map()
+        while len(client.pokestop):
+            i = client.pokestop.pop(0)
+            print 'Moving to Pokestop', i['id'], i['dist']
+            client.move_to_obj(i)
+            client.spin(i)
+            client.sort_map()
+            time.sleep(5)
 
     ################################################ Need to move to client.py
 
