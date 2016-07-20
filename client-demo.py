@@ -121,35 +121,39 @@ def main():
     if not client.login(config.auth_service, config.username, config.password):
         return
 
-    ################################################ 
+    # set initial location
+    client.jump_to(*position)
+
+    ################################################
 
     # Operate on client
     # client.move_to(*position)
     # client.scan()
     # client.get_player()
-    # client.get_inventory()
+    client.get_inventory().call()
     # client.get_map_objects()
+    # client.test()
 
     ################################################ Test code
-    client.jump_to(*position)
-    while True:
-        client.scan()
-        client.sort_map()
-        print "# of stop =", len(client.pokestop)
-        for i in client.pokestop:
-            print 'Moving to Pokestop', i['id'], i['dist']
-            client.move_to_obj(i)
-            client.spin(i)
-            time.sleep(5)
+
+    # client.scan().call()
+    # client.sort_map()
+
+    # for i in client.pokestop:
+    #     print i
+
+
+    # while True:
+    #     # client.scan()
+    #     # client.sort_map()
+    #     print "# of stop =", len(client.pokestop)
+    #     for i in client.pokestop:
+    #         print 'Moving to Pokestop', i['id'], i['dist']
+    #         client.move_to_obj(i)
+    #         client.spin(i)
+    #         time.sleep(5)
 
     ################################################ Need to move to client.py
-
-    # spin a fort
-    # ----------------------
-    #fortid = '<your fortid>'
-    #lng = <your longitude>
-    #lat = <your latitude>
-    #api.fort_search(fort_id=fortid, fort_latitude=lat, fort_longitude=lng, player_latitude=f2i(position[0]), player_longitude=f2i(position[1]))
 
     # release/transfer a pokemon and get candy for it
     # ----------------------
