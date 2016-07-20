@@ -148,8 +148,8 @@ def main():
     
     # provide player position on the earth
     api.set_position(*position)
-    
-    if not api.login(config.auth_service, config.username, config.password):
+
+    if not api.login(str(config.auth_service), str(config.username), str(config.password)):
         return
 
     # chain subrequests (methods) into one RPC call

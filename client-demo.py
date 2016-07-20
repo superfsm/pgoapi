@@ -118,7 +118,7 @@ def main():
     client = Client()
 
     # login
-    if not client.login(config.auth_service, config.username, config.password):
+    if not client.login(str(config.auth_service), str(config.username), str(config.password)):
         return
 
     # set initial location
