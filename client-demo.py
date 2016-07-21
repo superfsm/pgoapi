@@ -43,6 +43,20 @@ from s2sphere import CellId, LatLng
 
 log = logging.getLogger(__name__)
 
+rootLogger = logging.getLogger()
+rootLogger.setLevel(logging.DEBUG)
+logFormatter = logging.Formatter('%(asctime)s [%(module)10s] [%(levelname)5s] %(message)s')
+
+fileHandler = logging.FileHandler('log.log')
+fileHandler.setFormatter(logFormatter)
+fileHandler.setLevel(logging.DEBUG)
+rootLogger.addHandler(fileHandler)
+
+consoleHandler = logging.StreamHandler()
+consoleHandler.setFormatter(logFormatter)
+consoleHandler.setLevel(logging.INFO)
+logging.getLogger(__name__).addHandler(consoleHandler)
+
 def get_pos_by_name(location_name):
     geolocator = GoogleV3()
     loc = geolocator.geocode(location_name)
@@ -93,21 +107,18 @@ def init_config():
 def main():
     # log settings
     # log format
-    logging.basicConfig(level=logging.ERROR, format='%(asctime)s [%(module)10s] [%(levelname)5s] %(message)s')
-    logging.getLogger("requests").setLevel(logging.WARNING)
-    logging.getLogger("pgoapi").setLevel(logging.WARNING)
-    logging.getLogger("rpc_api").setLevel(logging.WARNING)
-    logging.getLogger("client").setLevel(logging.INFO)
+    # logging.basicConfig(level=logging.ERROR, format='%(asctime)s [%(module)10s] [%(levelname)5s] %(message)s')
+    # logging.getLogger("requests").setLevel(logging.DEBUG)
+    # logging.getLogger("pgoapi").setLevel(logging.DEBUG)
+    # logging.getLogger("rpc_api").setLevel(logging.DEBUG)
 
     config = init_config()
     if not config:
         return
 
     if config.debug:
-        logging.getLogger("client").setLevel(logging.DEBUG)
-        logging.getLogger("requests").setLevel(logging.DEBUG)
-        logging.getLogger("pgoapi").setLevel(logging.DEBUG)
-        logging.getLogger("rpc_api").setLevel(logging.DEBUG)
+        consoleHandler.setLevel(logging.DEBUG)
+        rootLogger.addHandler(consoleHandler)
 
     # provide player position on the earth
     position = get_pos_by_name(config.location)
@@ -127,16 +138,31 @@ def main():
     ################################################
 
     # Operate on client
+
     # client.move_to_obj(obj)
     # client.move_to(*position)
     # client.jump_to(*position)
-    # client.test()
 
-    # client.scan().call()
-    # client.get_inventory().call()
-    # client.get_player().call()
+
+    # client.scan()
+    # client.fort_search(pokestop)
 
     ################################################ Test code
+
+    client.scan()
+    client.summary()
+    # fort_search
+    # for k, v in client.pokestop.iteritems():
+    #     client.move_to_obj(v).fort_search(v)
+    #     break
+
+    print 'len of wild_pokemon = ', len(client.wild_pokemon)
+    for i in client.wild_pokemon:
+        print i
+        client.move_to_obj(i)
+        client.catch_pokemon(i)
+        break
+
 
     # while True:
     #     # client.scan()

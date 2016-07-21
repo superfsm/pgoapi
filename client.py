@@ -56,12 +56,11 @@ class MyDict(dict):
             val = MyDict(val)
         return val
 
-def client_api(func):
-    def wrapper(self, *args):
-        print self
-        func(self, *args)
-        return self
-    return wrapper
+# def chain_api(func):
+#     def wrapper(self, *args, **kwargs):
+#         func(self, *args, **kwargs)
+#         return self
+#     return wrapper
 
 class Client:
 
@@ -88,12 +87,12 @@ class Client:
         return (self._lat, self._lng)
 
     # Move to object
-    @client_api
+
     def move_to_obj(self, obj, speed = 20):
-        self.move_to(obj['lat'], obj['lng'], speed = speed)
+        self.move_to(obj['latitude'], obj['longitude'], speed = speed)
 
     # Move to position at speed(m)/s
-    @client_api
+
     def move_to(self, lat, lng, speed = 20):
         a = (self._lat, self._lng)
         b = (lat, lng)
@@ -104,13 +103,13 @@ class Client:
         delta_lat = (lat - self._lat) / steps
         delta_lng = (lng - self._lng) / steps
 
+        log.info('Moving ... %d steps' % steps)
         for step in range(steps):
-            log.info('Step {}'.format(step))
             self.jump_to(self._lat + delta_lat, self._lng + delta_lng)
             time.sleep(1)
 
     # Jump to position
-    @client_api
+
     def jump_to(self, lat, lng, alt = 0):
         log.debug('Move to - Lat: %s Long: %s Alt: %s', lat, lng, alt)
 
@@ -140,12 +139,11 @@ class Client:
         self.pokewild = sorted(self.pokewild, key=lambda k: k['dist'])
 
     # Send request and parse response
-    @client_api
-    def call(self):
+    def _call(self):
 
         # Call api
         resp = self._api.call()
-        log.debug('Response dictionary: \n\r{}'.format(pprint.PrettyPrinter(indent=4).pformat(resp)))
+        log.debug('Response dictionary: \n\r{}'.format(pprint.PrettyPrinter(indent=2, width=60).pformat(resp)))
 
         if not resp:
             return
@@ -160,15 +158,22 @@ class Client:
                 fort = MyDict(fort)
                 if fort['type'] == 1:
                     self.pokestop[fort['id']] = fort
-                    log.debug('POKESTOP = {}'.format(fort))
+                    # log.debug('POKESTOP = {}'.format(fort))
 
             for wild_pokemon in map_cell['wild_pokemons']:
                 self.wild_pokemon.append(wild_pokemon)
-                log.debug('POKEMON = {}'.format(wild_pokemon))
+                # log.debug('POKEMON = {}'.format(wild_pokemon))
 
+        # FORT_SEARCH
         if responses['FORT_SEARCH']:
-            log.debug('FORT_SEARCH = {}'.format(responses['FORT_SEARCH']))
+            fort_exp = responses['FORT_SEARCH']['experience_awarded']
+            fort_result = responses['FORT_SEARCH']['result']
+            if fort_result == 1:
+                log.info('FORT_SEARCH exp = {}'.format(fort_exp))
+            else:
+                log.warning('FORT_SEARCH result = {}'.format(fort_result))
 
+        # GET_INVENTORY
         if responses['GET_INVENTORY']['success']:
             for inventory_item in responses['GET_INVENTORY']['inventory_delta']['inventory_items']:
                 inventory_item = MyDict(inventory_item)
@@ -177,47 +182,105 @@ class Client:
                     log.warning('*** captured deleted_item_key in inventory')
                     log.warning(inventory_item)
 
+                #Item
                 item = inventory_item['inventory_item_data']['item']
                 count =inventory_item['inventory_item_data']['count']
                 if item and count:
                     self.item[item] = count
-                    log.debug('ITEM {} = {}'.format(item, count))
+                    # log.debug('ITEM {} = {}'.format(item, count))
 
+                #Stats
                 player_stats = inventory_item['inventory_item_data']['player_stats']
                 self.profile.update(player_stats)
-                log.debug('PROFILE {}'.format(self.profile))
+                # log.debug('PROFILE {}'.format(self.profile))
 
-                pokemon = inventory_item['inventory_item_data']['pokemon']
+                #Pokemon
+                pokemon = inventory_item['inventory_item_data']['pokemon_data']['cp']
                 if pokemon:
                     self.pokemon.append(pokemon)
 
+        # GET_PLAYER
         if 'GET_PLAYER' in responses:
             if 'profile' in responses['GET_PLAYER']:
                 self.profile['username'] = responses['GET_PLAYER']['profile']['username']
-                log.debug('PROFILE username = {}'.format(self.profile['username']))
+                # log.debug('PROFILE username = {}'.format(self.profile['username']))
+
+        # ENCOUNTER
+        if 'ENCOUNTER' in responses:
+            if responses['ENCOUNTER']['status'] == 1:
+                log.info('ENCOUNTER success')
+                return True
+            else:
+                log.warning('ENCOUNTER failed')
+                return False
+
+        # CATCH_POKEMON
+        if 'CATCH_POKEMON' in responses:
+            if responses['CATCH_POKEMON']['status'] == 1:
+                log.info('CATCH exp = {}'.format(sum(responses['CATCH_POKEMON']['capture_award']['xp'])))
+                return True
+            else:
+                log.warning('CATCH failed')
+                return False
+
+    def summary(self):
+
+        print 'POSITION (lat,lng) = {},{}'.format(self._lat, self._lng)
+        print 'POKEMON =', len(self.pokemon)
+        print 'POKESTOP =', len(self.pokestop)
+        print 'WILD POKEMON =', len(self.wild_pokemon)
+        print 'ITEM =', pprint.PrettyPrinter(indent=2).pformat(self.item)
+        print 'PROFILE =', pprint.PrettyPrinter(indent=2).pformat(self.profile)
 
     # Scan the map around you
-    @client_api
     def scan(self):
 
         self.wild_pokemon = []
 
         cell_ids = self._get_cell_ids()
         timestamps = [0, ] * len(cell_ids)
+        self._get_inventory()
+        self._get_player()
         self._api.get_map_objects(
             latitude=self._lat_f2i,
             longitude=self._lng_f2i,
             since_timestamp_ms=timestamps,
             cell_id=cell_ids)
+        self._call()
 
-    # Spin the pokestop
-    @client_api
-    def spin(self, pokestop):
-        self._api.fort_search(fort_id=pokestop['id'],
-            fort_latitude=pokestop['lat'],
-            fort_longitude=pokestop['lng'],
+
+    def _encounter(self, pokemon):
+        self._api.encounter(
+            encounter_id=pokemon['encounter_id'],
+            spawnpoint_id=pokemon['spawnpoint_id'],
             player_latitude=self._lat_f2i,
             player_longitude=self._lng_f2i)
+
+
+    def catch_pokemon(self, pokemon):
+        self._encounter(pokemon)
+        ret = self._call()
+        if ret:
+            self._api.catch_pokemon(
+                encounter_id=pokemon['encounter_id'],
+                pokeball=1,
+                normalized_reticle_size=1.950,
+                spawn_point_guid=pokemon['spawnpoint_id'],
+                hit_pokemon=1,
+                spin_modifier=1,
+                normalized_hit_position=1)
+            self._call()
+
+
+    # Spin the pokestop
+    def fort_search(self, pokestop):
+        self._api.fort_search(
+            fort_id=pokestop['id'],
+            fort_latitude=pokestop['latitude'],
+            fort_longitude=pokestop['longitude'],
+            player_latitude=self._lat_f2i,
+            player_longitude=self._lng_f2i)
+        self._call()
 
     # Login
     def login(self, auth_service, username, password):
@@ -226,15 +289,15 @@ class Client:
     def test(self):
         self._api.get_player()
         self._api.get_inventory()
-        resp = self._api.call()
+        resp = self._api._call()
         log.info('Response dictionary: \n\r{}'.format(json.dumps(resp, indent=2)))
 
-    @client_api
-    def get_player(self):
+
+    def _get_player(self):
         self._api.get_player()
 
-    @client_api
-    def get_inventory(self):
+
+    def _get_inventory(self):
         self.pokemon = []
         self._api.get_inventory()
 
