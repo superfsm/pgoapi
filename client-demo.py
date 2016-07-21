@@ -31,6 +31,7 @@ import requests
 import argparse
 import getpass
 import time
+import webbrowser
 
 from client import Client
 
@@ -56,6 +57,7 @@ consoleHandler = logging.StreamHandler()
 consoleHandler.setFormatter(logFormatter)
 consoleHandler.setLevel(logging.INFO)
 logging.getLogger(__name__).addHandler(consoleHandler)
+logging.getLogger('client').addHandler(consoleHandler)
 
 def get_pos_by_name(location_name):
     geolocator = GoogleV3()
@@ -103,11 +105,21 @@ def init_config():
 
     return config
 
+def show_map(client):
+    url_string = 'http://maps.googleapis.com/maps/api/staticmap?size=2048x2048&path=color:red|weight:1|'
+
+    for _, pokestop in client.get_pokestop():
+        url_string += '{},{}|'.format(pokestop['latitude'], pokestop['longitude'])
+    url_string=url_string[:-1]
+
+    if len(client.wild_pokemon):
+        for wild_pokemon in client.get_wild_pokemon():
+            url_string += '&markers={},{}'.format(wild_pokemon['latitude'], wild_pokemon['longitude'])
+
+    print(url_string)
+    webbrowser.open(url_string)
 
 def main():
-    # log settings
-    # log format
-    # logging.basicConfig(level=logging.ERROR, format='%(asctime)s [%(module)10s] [%(levelname)5s] %(message)s')
     # logging.getLogger("requests").setLevel(logging.DEBUG)
     # logging.getLogger("pgoapi").setLevel(logging.DEBUG)
     # logging.getLogger("rpc_api").setLevel(logging.DEBUG)
@@ -143,36 +155,20 @@ def main():
     # client.move_to(*position)
     # client.jump_to(*position)
 
-
     # client.scan()
     # client.fort_search(pokestop)
 
     ################################################ Test code
 
-    client.scan()
-    client.summary()
-    # fort_search
-    # for k, v in client.pokestop.iteritems():
-    #     client.move_to_obj(v).fort_search(v)
-    #     break
+    client.scan().summary()
+    show_map(client)
+    ## V1.0
+    for _, pokestop in client.get_pokestop():
+        for wild_pokemon in client.get_wild_pokemon():
+            client.move_to_obj(wild_pokemon).catch_pokemon(wild_pokemon).scan()
+        client.move_to_obj(pokestop).fort_search(pokestop).scan()
+        client.summary()
 
-    print 'len of wild_pokemon = ', len(client.wild_pokemon)
-    for i in client.wild_pokemon:
-        print i
-        client.move_to_obj(i)
-        client.catch_pokemon(i)
-        break
-
-
-    # while True:
-    #     # client.scan()
-    #     # client.sort_map()
-    #     print "# of stop =", len(client.pokestop)
-    #     for i in client.pokestop:
-    #         print 'Moving to Pokestop', i['id'], i['dist']
-    #         client.move_to_obj(i)
-    #         client.spin(i)
-    #         time.sleep(5)
 
 
 if __name__ == '__main__':

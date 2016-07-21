@@ -32,11 +32,14 @@ import argparse
 import getpass
 import pprint
 import time
-
 from collections import defaultdict
 
 from pgoapi import PGoApi
 from pgoapi.utilities import f2i, h2f
+
+#from . import protos
+from pgoapi.protos.POGOProtos.Inventory_pb2 import ItemId
+from pgoapi.protos.POGOProtos.Networking.Responses_pb2 import (EncounterResponse, CatchPokemonResponse)
 
 from google.protobuf.internal import encoder
 from geopy.geocoders import GoogleV3
@@ -56,11 +59,11 @@ class MyDict(dict):
             val = MyDict(val)
         return val
 
-# def chain_api(func):
-#     def wrapper(self, *args, **kwargs):
-#         func(self, *args, **kwargs)
-#         return self
-#     return wrapper
+def chain_api(func):
+    def wrapper(self, *args, **kwargs):
+        func(self, *args, **kwargs)
+        return self
+    return wrapper
 
 class Client:
 
@@ -83,16 +86,25 @@ class Client:
         self.pokemon = []
         self.wild_pokemon = []
 
+    def get_pokestop(self):
+        return self.pokestop.items()
+
+    def get_pokemon(self):
+        return self.pokemon[:]
+
+    def get_wild_pokemon(self):
+        return self.wild_pokemon[:]
+
     def get_position(self):
         return (self._lat, self._lng)
 
     # Move to object
-
+    @chain_api
     def move_to_obj(self, obj, speed = 20):
         self.move_to(obj['latitude'], obj['longitude'], speed = speed)
 
     # Move to position at speed(m)/s
-
+    @chain_api
     def move_to(self, lat, lng, speed = 20):
         a = (self._lat, self._lng)
         b = (lat, lng)
@@ -109,7 +121,7 @@ class Client:
             time.sleep(1)
 
     # Jump to position
-
+    @chain_api
     def jump_to(self, lat, lng, alt = 0):
         log.debug('Move to - Lat: %s Long: %s Alt: %s', lat, lng, alt)
 
@@ -183,10 +195,10 @@ class Client:
                     log.warning(inventory_item)
 
                 #Item
-                item = inventory_item['inventory_item_data']['item']
-                count =inventory_item['inventory_item_data']['count']
-                if item and count:
-                    self.item[item] = count
+                item_id = inventory_item['inventory_item_data']['item']['item_id']
+                count = inventory_item['inventory_item_data']['item']['count']
+                if item_id and count:
+                    self.item[item_id] = count
                     # log.debug('ITEM {} = {}'.format(item, count))
 
                 #Stats
@@ -207,32 +219,38 @@ class Client:
 
         # ENCOUNTER
         if 'ENCOUNTER' in responses:
+            log.info('ENCOUNTER = {}'.format(EncounterResponse.Status.Name(responses['ENCOUNTER']['status'])))
             if responses['ENCOUNTER']['status'] == 1:
-                log.info('ENCOUNTER success')
                 return True
             else:
-                log.warning('ENCOUNTER failed')
                 return False
 
         # CATCH_POKEMON
         if 'CATCH_POKEMON' in responses:
+            log.info('CATCH_POKEMON = {}'.format(CatchPokemonResponse.CatchStatus.Name(responses['CATCH_POKEMON']['status'])))
             if responses['CATCH_POKEMON']['status'] == 1:
-                log.info('CATCH exp = {}'.format(sum(responses['CATCH_POKEMON']['capture_award']['xp'])))
+                log.info('CATCH_POKEMON exp = {}'.format(sum(responses['CATCH_POKEMON']['capture_award']['xp'])))
                 return True
             else:
-                log.warning('CATCH failed')
                 return False
 
+    @chain_api
     def summary(self):
-
         print 'POSITION (lat,lng) = {},{}'.format(self._lat, self._lng)
-        print 'POKEMON =', len(self.pokemon)
         print 'POKESTOP =', len(self.pokestop)
         print 'WILD POKEMON =', len(self.wild_pokemon)
-        print 'ITEM =', pprint.PrettyPrinter(indent=2).pformat(self.item)
-        print 'PROFILE =', pprint.PrettyPrinter(indent=2).pformat(self.profile)
+        print 'POKEMON =\n   ', len(self.pokemon)
+        print 'ITEM'
+        for k,v in self.item.iteritems():
+            print "    %3d (%s) = %d" % (k, ItemId.Name(k), v)
+
+        print 'PROFILE ='
+        exp = self.profile['experience'] - self.profile['prev_level_xp']
+        exp_total = self.profile['next_level_xp'] - self.profile['prev_level_xp']
+        print '    Lv %d, %d/%d (%.2f%%)' % (self.profile['level'], exp, exp_total, float(exp)/exp_total*100)
 
     # Scan the map around you
+    @chain_api
     def scan(self):
 
         self.wild_pokemon = []
@@ -257,6 +275,7 @@ class Client:
             player_longitude=self._lng_f2i)
 
 
+    @chain_api
     def catch_pokemon(self, pokemon):
         self._encounter(pokemon)
         ret = self._call()
@@ -273,6 +292,7 @@ class Client:
 
 
     # Spin the pokestop
+    @chain_api
     def fort_search(self, pokestop):
         self._api.fort_search(
             fort_id=pokestop['id'],
