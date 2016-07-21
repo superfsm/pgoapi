@@ -127,21 +127,16 @@ def main():
     ################################################
 
     # Operate on client
+    # client.move_to_obj(obj)
     # client.move_to(*position)
-    # client.scan()
-    # client.get_player()
-    client.get_inventory().call()
-    # client.get_map_objects()
+    # client.jump_to(*position)
     # client.test()
 
-    ################################################ Test code
-
     # client.scan().call()
-    # client.sort_map()
+    # client.get_inventory().call()
+    # client.get_player().call()
 
-    # for i in client.pokestop:
-    #     print i
-
+    ################################################ Test code
 
     # while True:
     #     # client.scan()
@@ -153,22 +148,6 @@ def main():
     #         client.spin(i)
     #         time.sleep(5)
 
-    ################################################ Need to move to client.py
-
-    # release/transfer a pokemon and get candy for it
-    # ----------------------
-    #api.release_pokemon(pokemon_id = <your pokemonid>)
-
-    # get download settings call
-    # ----------------------
-    #api.download_settings(hash="4a2e9bc330dae60e7b74fc85b98868ab4700802e")
-
-    # execute the RPC call
-    # response_dict = api.call()
-    # print('Response dictionary: \n\r{}'.format(json.dumps(response_dict, indent=2)))
-
-    # alternative:
-    # api.get_player().get_inventory().get_map_objects().download_settings(hash="4a2e9bc330dae60e7b74fc85b98868ab4700802e").call()
 
 if __name__ == '__main__':
     main()

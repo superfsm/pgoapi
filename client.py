@@ -30,7 +30,10 @@ import logging
 import requests
 import argparse
 import getpass
+import pprint
 import time
+
+from collections import defaultdict
 
 from pgoapi import PGoApi
 from pgoapi.utilities import f2i, h2f
@@ -41,6 +44,17 @@ from geopy.distance import great_circle
 from s2sphere import CellId, LatLng
 
 log = logging.getLogger(__name__)
+
+class MyDict(dict):
+
+    def __missing__(self, key):
+        return MyDict({})
+
+    def __getitem__(self, key):
+        val = dict.__getitem__(self, key)
+        if isinstance(val, dict) and not isinstance(val, MyDict):
+            val = MyDict(val)
+        return val
 
 def client_api(func):
     def wrapper(self, *args):
@@ -63,11 +77,12 @@ class Client:
         self._alt_f2i = 0
 
         self.profile = {}
-        self.item = {}
-        self.pokemon = {}
+        self.item = defaultdict(int)
 
-        self.pokestop = []
-        self.pokewild = []
+        self.pokestop = {}
+
+        self.pokemon = []
+        self.wild_pokemon = []
 
     def get_position(self):
         return (self._lat, self._lng)
@@ -119,97 +134,81 @@ class Client:
     def sort_map(self):
         for i in self.pokestop:
             i['dist'] = self._dist_to_obj(i)
-        self.pokestop = sorted(self.pokestop , key=lambda k: k['dist'])
+        self.pokestop = sorted(self.pokestop, key=lambda k: k['dist'])
         for i in self.pokewild:
             i['dist'] = self._dist_to_obj(i)
-        self.pokewild = sorted(self.pokewild , key=lambda k: k['dist'])
+        self.pokewild = sorted(self.pokewild, key=lambda k: k['dist'])
 
     # Send request and parse response
     @client_api
     def call(self):
 
-        #Call api
+        # Call api
         resp = self._api.call()
-        log.debug('Response dictionary: \n\r{}'.format(json.dumps(resp, indent=2)))
+        log.debug('Response dictionary: \n\r{}'.format(pprint.PrettyPrinter(indent=4).pformat(resp)))
 
         if not resp:
             return
-        if 'responses' not in resp:
-            return
 
-        if 'GET_MAP_OBJECTS' in resp['responses'] and 'map_cells' in resp['responses']['GET_MAP_OBJECTS']:
-            for map_cell in resp['responses']['GET_MAP_OBJECTS']['map_cells']:
-                if 'forts' in map_cell:
-                    for fort in map_cell['forts']:
-                        if 'type' in fort and fort['type'] == 1:
-                            pokestop = {}
-                            pokestop['id'] = fort['id']
-                            pokestop['lat'] = fort['latitude']
-                            pokestop['lng'] = fort['longitude']
-                            # pokestop['enabled'] = fort['enabled']
-                            self.pokestop.append(pokestop)
-                            log.debug('POKESTOP = {}'.format(pokestop))
-                if 'wild_pokemons' in map_cell:
-                    for wild_pokemon in map_cell['wild_pokemons']:
-                        pokemon = {}
-                        pokemon['encounter_id'] = wild_pokemon['encounter_id']
-                        pokemon['lat'] = wild_pokemon['latitude']
-                        pokemon['lng'] = wild_pokemon['longitude']
-                        # wild['spawnpoint_id'] = wild_pokemon['spawnpoint_id']
-                        # wild['last_modified_timestamp_ms'] = wild_pokemon['last_modified_timestamp_ms']
-                        # wild['time_till_hidden_ms'] = wild_pokemon['time_till_hidden_ms']
-                        pokemon['expire_ms'] = time.time() * 1000 + wild_pokemon['time_till_hidden_ms']
-                        self.pokewild.append(pokemon)
-                        log.debug('POKEMON = {}'.format(pokemon))
+        responses = MyDict(resp)['responses']
 
-        if 'FORT_SEARCH' in resp['responses']:
-            if 'result' in resp['responses']['FORT_SEARCH']:
-                log.info('FORT_SEARCH = {}'.format(resp['responses']['FORT_SEARCH']))
+        # GET_MAP_OBJECTS
+        for map_cell in responses['GET_MAP_OBJECTS']['map_cells']:
+            map_cell = MyDict(map_cell)
 
-        if 'GET_INVENTORY' in resp['responses']:
-            if resp['responses']['GET_INVENTORY'].get('success', False) and 'inventory_delta' in resp['responses']['GET_INVENTORY']:
-                for inventory_item in resp['responses']['GET_INVENTORY']['inventory_delta']['inventory_items']:
-                    if 'deleted_item_key' in inventory_item:
-                        log.warning('*** captured deleted_item_key in inventory')
-                        log.warning(inventory_item)
-                    elif 'item' in inventory_item['inventory_item_data']:
-                        item = inventory_item['inventory_item_data']['item']
-                        if 'item' in item and 'count' in item:
-                            self.item[item['item']] = item['count']
-                            log.debug('ITEM = {}'.format(item))
-                    elif 'player_stats' in inventory_item['inventory_item_data']:
-                        player_stats = inventory_item['inventory_item_data']
-                        self.profile['pokemons_captured'] = player_stats['pokemons_captured']
-                        self.profile['km_walked'] = player_stats['km_walked']
-                        self.profile['level'] = player_stats['level']
-                        self.profile['experience'] = player_stats['experience']
-                        self.profile['pokemons_encountered'] = player_stats['pokemons_encountered']
-                        self.profile['unique_pokedex_entries'] = player_stats['unique_pokedex_entries']
-                        self.profile['next_level_xp'] = player_stats['next_level_xp']
-                        self.profile['poke_stop_visits'] = player_stats['poke_stop_visits']
-                    elif 'pokemon' in inventory_item['inventory_item_data']:
-                        pokemon = inventory_item['inventory_item_data']['pokemon']
-                        self.pokemon[pokemon['id']] = pokemon
+            for fort in map_cell['forts']:
+                fort = MyDict(fort)
+                if fort['type'] == 1:
+                    self.pokestop[fort['id']] = fort
+                    log.debug('POKESTOP = {}'.format(fort))
 
-        if 'GET_PLAYER' in resp['responses']:
-            if 'profile' in resp['responses']['GET_PLAYER']:
-                self.profile['username'] = resp['responses']['GET_PLAYER']['profile']['username']
+            for wild_pokemon in map_cell['wild_pokemons']:
+                self.wild_pokemon.append(wild_pokemon)
+                log.debug('POKEMON = {}'.format(wild_pokemon))
+
+        if responses['FORT_SEARCH']:
+            log.debug('FORT_SEARCH = {}'.format(responses['FORT_SEARCH']))
+
+        if responses['GET_INVENTORY']['success']:
+            for inventory_item in responses['GET_INVENTORY']['inventory_delta']['inventory_items']:
+                inventory_item = MyDict(inventory_item)
+
+                if inventory_item['deleted_item_key']:
+                    log.warning('*** captured deleted_item_key in inventory')
+                    log.warning(inventory_item)
+
+                item = inventory_item['inventory_item_data']['item']
+                count =inventory_item['inventory_item_data']['count']
+                if item and count:
+                    self.item[item] = count
+                    log.debug('ITEM {} = {}'.format(item, count))
+
+                player_stats = inventory_item['inventory_item_data']['player_stats']
+                self.profile.update(player_stats)
+                log.debug('PROFILE {}'.format(self.profile))
+
+                pokemon = inventory_item['inventory_item_data']['pokemon']
+                if pokemon:
+                    self.pokemon.append(pokemon)
+
+        if 'GET_PLAYER' in responses:
+            if 'profile' in responses['GET_PLAYER']:
+                self.profile['username'] = responses['GET_PLAYER']['profile']['username']
                 log.debug('PROFILE username = {}'.format(self.profile['username']))
 
     # Scan the map around you
     @client_api
     def scan(self):
 
-        self.pokestop = []
-        self.wild = []
+        self.wild_pokemon = []
 
-        timestamp = "\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000"
-        cellid = self._get_cellid()
+        cell_ids = self._get_cell_ids()
+        timestamps = [0, ] * len(cell_ids)
         self._api.get_map_objects(
             latitude=self._lat_f2i,
             longitude=self._lng_f2i,
-            since_timestamp_ms=timestamp,
-            cell_id=cellid)
+            since_timestamp_ms=timestamps,
+            cell_id=cell_ids)
 
     # Spin the pokestop
     @client_api
@@ -217,7 +216,7 @@ class Client:
         self._api.fort_search(fort_id=pokestop['id'],
             fort_latitude=pokestop['lat'],
             fort_longitude=pokestop['lng'],
-            player_latitude=self._lat_f2i ,
+            player_latitude=self._lat_f2i,
             player_longitude=self._lng_f2i)
 
     # Login
@@ -236,23 +235,26 @@ class Client:
 
     @client_api
     def get_inventory(self):
+        self.pokemon = []
         self._api.get_inventory()
 
-    def _get_cellid(self):
+    def _get_cell_ids(self, radius=10):
         lat = self._lat
         long = self._lng
         origin = CellId.from_lat_lng(LatLng.from_degrees(lat, long)).parent(15)
         walk = [origin.id()]
+        right = origin.next()
+        left = origin.prev()
 
-        # 10 before and 10 after
-        next = origin.next()
-        prev = origin.prev()
-        for i in range(10):
-            walk.append(prev.id())
-            walk.append(next.id())
-            next = next.next()
-            prev = prev.prev()
-        return ''.join(map(self._encode, sorted(walk)))
+        # Search around provided radius
+        for i in range(radius):
+            walk.append(right.id())
+            walk.append(left.id())
+            right = right.next()
+            left = left.prev()
+
+        # Return everything
+        return sorted(walk)
 
     def _encode(self,cellid):
         output = []
