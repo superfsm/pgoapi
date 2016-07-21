@@ -87,7 +87,7 @@ class Client:
         self.wild_pokemon = []
 
     def get_pokestop(self):
-        return self.pokestop.items()
+        return self.pokestop.values()
 
     def get_pokemon(self):
         return self.pokemon[:]
@@ -219,7 +219,10 @@ class Client:
 
         # ENCOUNTER
         if 'ENCOUNTER' in responses:
-            log.info('ENCOUNTER = {}'.format(EncounterResponse.Status.Name(responses['ENCOUNTER']['status'])))
+            if responses['ENCOUNTER']['status']:
+                log.info('ENCOUNTER = {}'.format(EncounterResponse.Status.Name(responses['ENCOUNTER']['status'])))
+            else:
+                log.warning('ENCOUNTER = {}')
             if responses['ENCOUNTER']['status'] == 1:
                 return True
             else:
@@ -227,8 +230,12 @@ class Client:
 
         # CATCH_POKEMON
         if 'CATCH_POKEMON' in responses:
-            log.info('CATCH_POKEMON = {}'.format(CatchPokemonResponse.CatchStatus.Name(responses['CATCH_POKEMON']['status'])))
+            if responses['CATCH_POKEMON']['status']:
+                log.info('CATCH_POKEMON = {}'.format(CatchPokemonResponse.CatchStatus.Name(responses['CATCH_POKEMON']['status'])))
+            else:
+                log.warning('CATCH_POKEMON = {}')
             if responses['CATCH_POKEMON']['status'] == 1:
+
                 log.info('CATCH_POKEMON exp = {}'.format(sum(responses['CATCH_POKEMON']['capture_award']['xp'])))
                 return True
             else:
@@ -241,8 +248,11 @@ class Client:
         print 'WILD POKEMON =', len(self.wild_pokemon)
         print 'POKEMON =\n   ', len(self.pokemon)
         print 'ITEM'
+        cnt = 0
         for k,v in self.item.iteritems():
             print "    %3d (%s) = %d" % (k, ItemId.Name(k), v)
+            cnt += v
+        print "    Total =", cnt
 
         print 'PROFILE ='
         exp = self.profile['experience'] - self.profile['prev_level_xp']
@@ -277,12 +287,19 @@ class Client:
 
     @chain_api
     def catch_pokemon(self, pokemon):
+        if self.item[ItemId.Value('ITEM_POKE_BALL')] > 5:
+            pokeball = ItemId.Value('ITEM_POKE_BALL')
+        elif self.item[ItemId.Value('ITEM_GREAT_BALL')] > 5:
+            pokeball = ItemId.Value('ITEM_GREAT_BALL')
+        else:
+            log.warning('CATCH_POKEMON no balls!')
+
         self._encounter(pokemon)
         ret = self._call()
         if ret:
             self._api.catch_pokemon(
                 encounter_id=pokemon['encounter_id'],
-                pokeball=1,
+                pokeball=pokeball,
                 normalized_reticle_size=1.950,
                 spawn_point_guid=pokemon['spawnpoint_id'],
                 hit_pokemon=1,

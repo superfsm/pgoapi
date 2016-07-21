@@ -32,6 +32,8 @@ import argparse
 import getpass
 import time
 import webbrowser
+import pprint
+import random
 
 from client import Client
 
@@ -41,6 +43,10 @@ from pgoapi.utilities import f2i, h2f
 from google.protobuf.internal import encoder
 from geopy.geocoders import GoogleV3
 from s2sphere import CellId, LatLng
+from ortools.constraint_solver import pywrapcp
+# You need to import routing_enums_pb2 after pywrapcp!
+from ortools.constraint_solver import routing_enums_pb2
+from geopy.distance import great_circle
 
 log = logging.getLogger(__name__)
 
@@ -58,6 +64,47 @@ consoleHandler.setFormatter(logFormatter)
 consoleHandler.setLevel(logging.INFO)
 logging.getLogger(__name__).addHandler(consoleHandler)
 logging.getLogger('client').addHandler(consoleHandler)
+
+class TSP(object):
+    """Create callback to calculate distances between points."""
+    def __init__(self, lst):
+
+        self.lst = lst
+        self.tsp_size = len(lst)
+
+        self.matrix = {}
+        for from_node in range(len(lst)):
+            self.matrix[from_node] = {}
+            for to_node in range(len(lst)):
+                if from_node == to_node:
+                    self.matrix[from_node][to_node] = 0
+                else:
+                    a = (lst[from_node]['latitude'],lst[from_node]['longitude'])
+                    b = (lst[to_node]['latitude'],lst[to_node]['longitude'])
+                    self.matrix[from_node][to_node] = great_circle(a,b).meters
+
+    def distance(self, from_node, to_node):
+        return self.matrix[from_node][to_node]
+
+    def solve(self):
+        if self.tsp_size <= 0:
+            return []
+
+        routing = pywrapcp.RoutingModel(self.tsp_size, 1)
+        callback = self.distance
+        routing.SetArcCostEvaluatorOfAllVehicles(callback)
+        assignment = routing.Solve()
+
+        if assignment:
+            print "TSP: total dist =", assignment.ObjectiveValue()
+            index = routing.Start(0)
+            ret = [self.lst[index]]
+            while not routing.IsEnd(index):
+                ret.append(self.lst[routing.IndexToNode(index)])
+                index = assignment.Value(routing.NextVar(index))
+            return ret
+        else:
+            print 'TSP: no solution.'
 
 def get_pos_by_name(location_name):
     geolocator = GoogleV3()
@@ -105,15 +152,15 @@ def init_config():
 
     return config
 
-def show_map(client):
+def show_map(pokestops, wild_pokemons):
     url_string = 'http://maps.googleapis.com/maps/api/staticmap?size=2048x2048&path=color:red|weight:1|'
 
-    for _, pokestop in client.get_pokestop():
+    for pokestop in pokestops: # client.get_pokestop():
         url_string += '{},{}|'.format(pokestop['latitude'], pokestop['longitude'])
     url_string=url_string[:-1]
 
-    if len(client.wild_pokemon):
-        for wild_pokemon in client.get_wild_pokemon():
+    if len(wild_pokemons):
+        for wild_pokemon in wild_pokemons:
             url_string += '&markers={},{}'.format(wild_pokemon['latitude'], wild_pokemon['longitude'])
 
     print(url_string)
@@ -161,15 +208,14 @@ def main():
     ################################################ Test code
 
     client.scan().summary()
-    show_map(client)
+    sorted_pokestops = TSP(client.get_pokestop()).solve()
+    show_map(sorted_pokestops, [])
     ## V1.0
-    for _, pokestop in client.get_pokestop():
+    for pokestop in sorted_pokestops:
         for wild_pokemon in client.get_wild_pokemon():
             client.move_to_obj(wild_pokemon).catch_pokemon(wild_pokemon).scan()
         client.move_to_obj(pokestop).fort_search(pokestop).scan()
         client.summary()
-
-
 
 if __name__ == '__main__':
     main()
