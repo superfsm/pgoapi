@@ -303,16 +303,18 @@ class Client:
 
             if item_id == ItemId.Value('ITEM_POTION'):
                 self.recycle_inventory_item(item_id, count)
-            if item_id == ItemId.Value('ITEM_SUPER_POTION') and count > 30:
-                self.recycle_inventory_item(item_id, count-30)
+            if item_id == ItemId.Value('ITEM_SUPER_POTION'):
+                self.recycle_inventory_item(item_id, count)
+            if item_id == ItemId.Value('ITEM_HYPER_POTION') and count > 50:
+                self.recycle_inventory_item(item_id, count-50)
             if item_id == ItemId.Value('ITEM_REVIVE') and count > 30:
                 self.recycle_inventory_item(item_id, count-30)
             if item_id == ItemId.Value('ITEM_RAZZ_BERRY') and count > 30:
                 self.recycle_inventory_item(item_id, count - 30)
-            if item_id == ItemId.Value('ITEM_POKE_BALL') and count > 20:
-                self.recycle_inventory_item(item_id, count-30)
+            if item_id == ItemId.Value('ITEM_POKE_BALL') and count > 50:
+                self.recycle_inventory_item(item_id, count-50)
             if item_id == ItemId.Value('ITEM_GREAT_BALL') and count > 50:
-                self.recycle_inventory_item(item_id, count-30)
+                self.recycle_inventory_item(item_id, count-50)
 
         self.summary()
 
