@@ -344,20 +344,16 @@ class Client:
         exp = self.profile['experience'] - self.profile['prev_level_xp']
         exp_total = self.profile['next_level_xp'] - self.profile['prev_level_xp']
 
-        print '==ITEM %d/%d, POKEMON %d/%d, [Lv %d, %d/%d, (%d%%)]==' % (
+        print '[Lv %d, %d/%d, (%.2f%%)] ITEM = %d/%d, POKEMON = %d/%d' % (
+            self.profile['level'],exp,exp_total,float(exp)/exp_total*100,
             cnt_item, self.profile['max_item_storage'],
-            cnt_pokemon, self.profile['max_pokemon_storage'],
-            self.profile['level'],exp,exp_total,float(exp)/exp_total*100)
-
-
-
+            cnt_pokemon, self.profile['max_pokemon_storage'])
 
     @chain_api
     def summary(self):
 
-        print 'POSITION (lat,lng) = {},{}'.format(self._lat, self._lng)
-        print 'POKESTOP # =', len(self.pokestop)
-        print 'WILD POKEMON # =', len(self.wild_pokemon)
+        print 'PROFILE ='
+        pprint.pprint(self.profile, indent=4)
 
         cnt_pokemon = 0
         for idx in range(POKEMON_ID_MAX):
@@ -368,17 +364,17 @@ class Client:
             print '%03d (%15s)[%1s]: %3d =' % (
                 idx, PokemonId.Name(idx), star, self.candy[idx]), [p['cp'] for p in self.pokemon[idx]]
             cnt_pokemon += len(self.pokemon[idx])
-        print 'POKEMON # =\n   ', cnt_pokemon
 
         cnt_item = 0
         for k,v in self.item.iteritems():
             print "*%3d (%s) = %d" % (k, ItemId.Name(k), v)
             cnt_item += v
+
         print "ITEM # =\n   ", cnt_item
-
-        print 'PROFILE ='
-        pprint.pprint(self.profile, indent=4)
-
+        print 'POKEMON # =\n   ', cnt_pokemon
+        print 'POSITION (lat,lng) = {},{}'.format(self._lat, self._lng)
+        print 'POKESTOP # =', len(self.pokestop)
+        print 'WILD POKEMON # =', len(self.wild_pokemon)
         print 'EGG # =\n   ', len(self.egg)
 
         exp = self.profile['experience'] - self.profile['prev_level_xp']
