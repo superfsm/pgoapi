@@ -34,6 +34,7 @@ import time
 import webbrowser
 import pprint
 import random
+import sys
 
 from client import Client
 
@@ -97,18 +98,37 @@ class TSP(object):
 
         if assignment:
             print "TSP: total dist =", assignment.ObjectiveValue()
+
+            # Only one route here; otherwise iterate from 0 to routing.vehicles() - 1
+            route_number = 0
+            index = routing.Start(route_number) # Index of the variable for the starting node.
+
             index = routing.Start(0)
-            ret = [self.lst[index]]
+            ret = []
             while not routing.IsEnd(index):
                 ret.append(self.lst[routing.IndexToNode(index)])
-                index = assignment.Value(routing.NextVar(index))
+                next_index = assignment.Value(routing.NextVar(index))
+
+                dist = int(self.distance(routing.IndexToNode(index), routing.IndexToNode(next_index)))
+                sys.stdout.write(str(dist) + ' -> ')
+
+                index = next_index
+            ret.append(self.lst[routing.IndexToNode(index)])
+            print ''
+
             return ret
         else:
             print 'TSP: no solution.'
 
 def get_pos_by_name(location_name):
     geolocator = GoogleV3()
-    loc = geolocator.geocode(location_name)
+    while True:
+        try:
+            loc = geolocator.geocode(location_name)
+            break
+        except:
+            print "geolocator err, retry after 3s"
+            time.sleep(3)
 
     log.info('Your given location: %s', loc.address.encode('utf-8'))
     log.info('lat/long/alt: %s %s %s', loc.latitude, loc.longitude, loc.altitude)
