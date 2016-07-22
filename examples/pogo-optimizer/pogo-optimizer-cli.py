@@ -30,29 +30,36 @@ import sys
 import json
 import time
 import struct
-import random
+import pprint
 import logging
 import requests
 import argparse
-import pprint
+import getpass
 
-from pgoapi import PGoApi
-from pgoapi.utilities import f2i, h2f
+# add directory of this file to PATH, so that the package will be found
+sys.path.append(os.path.dirname(os.path.realpath(__file__)))
+
+# import Pokemon Go API lib
+from pgoapi import pgoapi
 from pgoapi import utilities as util
 
+# other stuff
 from google.protobuf.internal import encoder
 from geopy.geocoders import GoogleV3
 from s2sphere import Cell, CellId, LatLng
+from tabulate import tabulate
+from collections import defaultdict
+
 
 log = logging.getLogger(__name__)
 
 def get_pos_by_name(location_name):
     geolocator = GoogleV3()
-    loc = geolocator.geocode(location_name)
+    loc = geolocator.geocode(location_name, timeout=10)
 
     log.info('Your given location: %s', loc.address.encode('utf-8'))
     log.info('lat/long/alt: %s %s %s', loc.latitude, loc.longitude, loc.altitude)
-
+    
     return (loc.latitude, loc.longitude, loc.altitude)
 
 def get_cell_ids(lat, long, radius = 10):
@@ -70,12 +77,12 @@ def get_cell_ids(lat, long, radius = 10):
 
     # Return everything
     return sorted(walk)
-
+    
 def encode(cellid):
     output = []
     encoder._VarintEncoder()(output.append, cellid)
     return ''.join(output)
-
+    
 def init_config():
     parser = argparse.ArgumentParser()
     config_file = "config.json"
@@ -91,7 +98,7 @@ def init_config():
     parser.add_argument("-a", "--auth_service", help="Auth Service ('ptc' or 'google')",
         required=required("auth_service"))
     parser.add_argument("-u", "--username", help="Username", required=required("username"))
-    parser.add_argument("-p", "--password", help="Password", required=required("password"))
+    parser.add_argument("-p", "--password", help="Password")
     parser.add_argument("-l", "--location", help="Location", required=required("location"))
     parser.add_argument("-d", "--debug", help="Debug Mode", action='store_true')
     parser.add_argument("-t", "--test", help="Only parse the specified location", action='store_true')
@@ -101,13 +108,18 @@ def init_config():
     # Passed in arguments shoud trump
     for key in config.__dict__:
         if key in load and config.__dict__[key] == None:
-            config.__dict__[key] = load[key]
+            config.__dict__[key] = str(load[key])
+
+    if config.__dict__["password"] is None:
+        log.info("Secure Password Input (if there is no password prompt, use --password <pw>):")
+        config.__dict__["password"] = getpass.getpass()
 
     if config.auth_service not in ['ptc', 'google']:
       log.error("Invalid Auth service specified! ('ptc' or 'google')")
       return None
-
+    
     return config
+    
 
 def main():
     # log settings
@@ -123,104 +135,55 @@ def main():
     config = init_config()
     if not config:
         return
-
+        
     if config.debug:
         logging.getLogger("requests").setLevel(logging.DEBUG)
         logging.getLogger("pgoapi").setLevel(logging.DEBUG)
         logging.getLogger("rpc_api").setLevel(logging.DEBUG)
-
+    
     position = get_pos_by_name(config.location)
     if config.test:
         return
-
-    # instantiate pgoapi
-    api = PGoApi()
-
+    
+    # instantiate pgoapi 
+    api = pgoapi.PGoApi()
+    
     # provide player position on the earth
     api.set_position(*position)
-
+    
     if not api.login(config.auth_service, config.username, config.password):
         return
-
-    # chain subrequests (methods) into one RPC call
-
-    # get player profile call
+    
+    # get inventory call
     # ----------------------
-    api.get_player()
-
+    api.get_inventory()
+    
     # execute the RPC call
     response_dict = api.call()
 
-    # apparently new dict has binary data in it, so formatting it with this method no longer works, pprint works here but there are other alternatives    
-    # print('Response dictionary: \n\r{}'.format(json.dumps(response_dict, indent=2)))
-    print('Response dictionary: \n\r{}'.format(pprint.PrettyPrinter(indent=4).pformat(response_dict)))
-    find_poi(api, position[0], position[1])
+    with open('data/moves.json') as data_file:
+        moves = json.load(data_file)
 
-def find_poi(api, lat, lng):
-    poi = {'pokemons': {}, 'forts': []}
-    step_size = 0.0015
-    step_limit = 49
-    coords = generate_spiral(lat, lng, step_size, step_limit)
-    for coord in coords:
-        lat = coord['lat']
-        lng = coord['lng']
-        api.set_position(lat, lng, 0)
+    with open('data/pokemon.json') as data_file:    
+        pokemon = json.load(data_file)
 
-        
-        #get_cellid was buggy -> replaced through get_cell_ids from pokecli
-        #timestamp gets computed a different way:
-        cell_ids = get_cell_ids(lat, lng)
-        timestamps = [0,] * len(cell_ids)
-        api.get_map_objects(latitude = util.f2i(lat), longitude = util.f2i(lng), since_timestamp_ms = timestamps, cell_id = cell_ids)
-        response_dict = api.call()
-        if 'status' in response_dict['responses']['GET_MAP_OBJECTS']:
-            if response_dict['responses']['GET_MAP_OBJECTS']['status'] == 1:
-                for map_cell in response_dict['responses']['GET_MAP_OBJECTS']['map_cells']:
-                    if 'wild_pokemons' in map_cell:
-                        for pokemon in map_cell['wild_pokemons']:
-                            pokekey = get_key_from_pokemon(pokemon)
-                            pokemon['hides_at'] = time.time() + pokemon['time_till_hidden_ms']/1000
-                            poi['pokemons'][pokekey] = pokemon
+    def format(i):
+        i = i['inventory_item_data']['pokemon_data']
+        i = {k: v for k, v in i.items() if k in ['nickname','move_1', 'move_2', 'pokemon_id', 'individual_defense', 'stamina', 'cp', 'individual_stamina', 'individual_attack']}
+        i['individual_defense'] =  i.get('individual_defense', 0)
+        i['individual_attack'] =  i.get('individual_attack', 0)
+        i['individual_stamina'] =  i.get('individual_stamina', 0)
+        i['power_quotient'] = round(((float(i['individual_defense']) + float(i['individual_attack']) + float(i['individual_stamina'])) / 45) * 100)
+        i['name'] = filter(lambda j: int(j['Number']) == i['pokemon_id'], pokemon)[0]['Name']
+        i['move_1'] = filter(lambda j: j['id'] == i['move_1'], moves)[0]['name']
+        i['move_2'] = filter(lambda j: j['id'] == i['move_2'], moves)[0]['name']
+        return i
 
-        # time.sleep(0.51)
-    # new dict, binary data
-    # print('POI dictionary: \n\r{}'.format(json.dumps(poi, indent=2)))
-    print('POI dictionary: \n\r{}'.format(pprint.PrettyPrinter(indent=4).pformat(poi)))
-    print('Open this in a browser to see the path the spiral search took:')
-    print_gmaps_dbug(coords)
+    all_pokemon = filter(lambda i: i['inventory_item_data'].has_key('pokemon_data') and not i['inventory_item_data']['pokemon_data'].has_key('is_egg'), response_dict['responses']['GET_INVENTORY']['inventory_delta']['inventory_items'])
+    all_pokemon = map(format, all_pokemon)
+    all_pokemon.sort(key=lambda x: x['power_quotient'], reverse=True)
 
-def get_key_from_pokemon(pokemon):
-    return '{}-{}'.format(pokemon['spawnpoint_id'], pokemon['pokemon_data']['pokemon_id'])
-
-def print_gmaps_dbug(coords):
-    url_string = 'http://maps.googleapis.com/maps/api/staticmap?size=400x400&path='
-    for coord in coords:
-        url_string += '{},{}|'.format(coord['lat'], coord['lng'])
-    print(url_string[:-1])
-
-def generate_spiral(starting_lat, starting_lng, step_size, step_limit):
-    coords = [{'lat': starting_lat, 'lng': starting_lng}]
-    steps,x,y,d,m = 1, 0, 0, 1, 1
-    rlow = 0.0
-    rhigh = 0.0005
-
-    while steps < step_limit:
-        while 2 * x * d < m and steps < step_limit:
-            x = x + d
-            steps += 1
-            lat = x * step_size + starting_lat + random.uniform(rlow, rhigh)
-            lng = y * step_size + starting_lng + random.uniform(rlow, rhigh)
-            coords.append({'lat': lat, 'lng': lng})
-        while 2 * y * d < m and steps < step_limit:
-            y = y + d
-            steps += 1
-            lat = x * step_size + starting_lat + random.uniform(rlow, rhigh)
-            lng = y * step_size + starting_lng + random.uniform(rlow, rhigh)
-            coords.append({'lat': lat, 'lng': lng})
-
-        d = -1 * d
-        m = m + 1
-    return coords
+    print tabulate(all_pokemon, headers = "keys")
 
 if __name__ == '__main__':
     main()
