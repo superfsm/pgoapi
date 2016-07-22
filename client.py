@@ -291,9 +291,11 @@ class Client:
                 log.warning('RECYCLE_INVENTORY_ITEM = {}')
 
         # USE_ITEM_CAPTURE
-        log.log('USE_ITEM_CAPTURE {}'.format(responses['USE_ITEM_CAPTURE']['success']))
-        if responses['USE_ITEM_CAPTURE']['success'] != True:
-            self.use_item_capture()
+        log.info('USE_ITEM_CAPTURE success = {}'.format(responses['USE_ITEM_CAPTURE']['success']))
+        if responses['USE_ITEM_CAPTURE']['success'] == True:
+            return True
+        else:
+            return False
 
     @chain_api
     def bulk_recycle_inventory_item(self):
@@ -454,7 +456,8 @@ class Client:
                 item_id=ItemId.Value('ITEM_RAZZ_BERRY'),
                 encounter_id=pokemon['encounter_id'],
                 spawn_point_guid=pokemon['spawnpoint_id'])
-            self._call()
+            if not self._call():
+                self.use_item_capture(pokemon)
         else:
             log.info('USE_ITEM_CAPTURE, out of berry :(')
 
