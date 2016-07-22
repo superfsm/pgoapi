@@ -182,7 +182,7 @@ class Client:
             experience_awarded = responses['FORT_SEARCH']['experience_awarded']
             result = responses['FORT_SEARCH']['result']
             if result:
-                log.info('FORT_SEARCH {}, exp = {}'.format(FortSearchResponse.Result.Name(result),experience_awarded))
+                log.info('FORT_SEARCH {}, EXP = {}'.format(FortSearchResponse.Result.Name(result),experience_awarded))
                 if result == FortSearchResponse.Result.Value('INVENTORY_FULL'):
                     self.bulk_recycle_inventory_item()
             else:
@@ -227,10 +227,8 @@ class Client:
                     self.candy[family_id] = candy
 
         # GET_PLAYER
-        if 'GET_PLAYER' in responses:
-            if 'profile' in responses['GET_PLAYER']:
-                self.profile['username'] = responses['GET_PLAYER']['profile']['username']
-                # log.debug('PROFILE username = {}'.format(self.profile['username']))
+        if responses['GET_PLAYER']['success'] == True:
+            self.profile.update(responses['GET_PLAYER']['player_data'])
 
         # ENCOUNTER
         if 'ENCOUNTER' in responses:
@@ -240,6 +238,9 @@ class Client:
                 log.warning('ENCOUNTER = {}')
 
             if responses['ENCOUNTER']['status'] == 1:
+                log.info('ENCOUNTER CP = {} PROB = {}'.format(
+                    responses['ENCOUNTER']['wild_pokemon']['pokemon_data']['cp'],
+                    responses['ENCOUNTER']['capture_probability']['capture_probability']))
                 return True
             else:
                 if responses['ENCOUNTER']['status'] == EncounterResponse.Status.Value('POKEMON_INVENTORY_FULL'):
@@ -248,16 +249,18 @@ class Client:
 
         # CATCH_POKEMON
         if 'CATCH_POKEMON' in responses:
-            if responses['CATCH_POKEMON']['status']:
-                log.info('CATCH_POKEMON = {}'.format(CatchPokemonResponse.CatchStatus.Name(responses['CATCH_POKEMON']['status'])))
+
+            status = responses['CATCH_POKEMON']['status']
+
+            if status:
+                log.info('CATCH_POKEMON = {}'.format(CatchPokemonResponse.CatchStatus.Name(status)))
             else:
                 log.warning('CATCH_POKEMON = {}')
-            if responses['CATCH_POKEMON']['status'] == 1:
 
-                log.info('CATCH_POKEMON exp = {}'.format(sum(responses['CATCH_POKEMON']['capture_award']['xp'])))
-                return True
-            else:
-                return False
+
+            if status == 1:
+                log.info('CATCH_POKEMON EXP = {}'.format(sum(responses['CATCH_POKEMON']['capture_award']['xp'])))
+            return status
 
         # RELEASE_POKEMON
         if 'RELEASE_POKEMON' in responses:
@@ -283,19 +286,23 @@ class Client:
 
             if item_id == ItemId.Value('ITEM_POTION'):
                 self.recycle_inventory_item(item_id, count)
-            if item_id == ItemId.Value('ITEM_RAZZ_BERRY'):
-                self.recycle_inventory_item(item_id, count)
+            if item_id == ItemId.Value('ITEM_SUPER_POTION') and count > 50:
+                self.recycle_inventory_item(item_id, count-50)
             if item_id == ItemId.Value('ITEM_REVIVE') and count > 50:
                 self.recycle_inventory_item(item_id, count-50)
+            if item_id == ItemId.Value('ITEM_RAZZ_BERRY') and count > 50:
+                self.recycle_inventory_item(item_id, count - 50)
             if item_id == ItemId.Value('ITEM_POKE_BALL') and count > 30:
                 self.recycle_inventory_item(item_id, count-30)
 
-        self.summary(detail = True)
+        self.summary()
 
     @chain_api
     def recycle_inventory_item(self, item_id, count):
         self._api.recycle_inventory_item(item_id=item_id,count=count)
         self._call()
+
+        self.summary()
 
     @chain_api
     def bulk_release_pokemon(self):
@@ -311,30 +318,48 @@ class Client:
         self._call()
 
     @chain_api
-    def summary(self, detail = False):
-        if detail:
-            print 'POSITION (lat,lng) = {},{}'.format(self._lat, self._lng)
-            print 'POKESTOP # =', len(self.pokestop)
-            print 'WILD POKEMON # =', len(self.wild_pokemon)
+    def status(self):
+        cnt_item = 0
+        for v in self.item.values():
+            cnt_item += v
 
         cnt_pokemon = 0
         for idx in range(POKEMON_ID_MAX):
-            if detail:
-                print '%03d (%15s): %3d =' % (idx, PokemonId.Name(idx), self.candy[idx]), [p['cp'] for p in self.pokemon[idx]]
             cnt_pokemon += len(self.pokemon[idx])
+
+        exp = self.profile['experience'] - self.profile['prev_level_xp']
+        exp_total = self.profile['next_level_xp'] - self.profile['prev_level_xp']
+
+        print '==ITEM %d/%d, POKEMON %d/%d, [Lv %d, %d/%d, (%d%%)]==' % (
+            cnt_item, self.profile['max_item_storage'],
+            cnt_pokemon, self.profile['max_pokemon_storage'],
+            self.profile['level'],exp,exp_total,float(exp)/exp_total*100)
+
+
+
+
+    @chain_api
+    def summary(self):
+
+        print 'POSITION (lat,lng) = {},{}'.format(self._lat, self._lng)
+        print 'POKESTOP # =', len(self.pokestop)
+        print 'WILD POKEMON # =', len(self.wild_pokemon)
+
+        cnt_pokemon = 0
+        for idx in range(POKEMON_ID_MAX):
+            print '%03d (%15s): %3d =' % (idx, PokemonId.Name(idx), self.candy[idx]), [p['cp'] for p in self.pokemon[idx]]
+            cnt_pokemon += len(self.pokemon[idx])
+        print 'POKEMON # =\n   ', cnt_pokemon
 
         cnt_item = 0
         for k,v in self.item.iteritems():
-            if detail:
-                print "*%3d (%s) = %d" % (k, ItemId.Name(k), v)
+            print "*%3d (%s) = %d" % (k, ItemId.Name(k), v)
             cnt_item += v
-
-        if detail:
-            print 'PROFILE ='
-            pprint.pprint(self.profile, indent=4)
-
         print "ITEM # =\n   ", cnt_item
-        print 'POKEMON # =\n   ', cnt_pokemon
+
+        print 'PROFILE ='
+        pprint.pprint(self.profile, indent=4)
+
         print 'EGG # =\n   ', len(self.egg)
 
         exp = self.profile['experience'] - self.profile['prev_level_xp']
@@ -358,6 +383,25 @@ class Client:
             cell_id=cell_ids)
         self._call()
 
+    @chain_api
+    def catch_pokemon(self, pokemon):
+
+        self._encounter(pokemon)
+        ret = self._call()
+        if ret:
+
+            if self.item[ItemId.Value('ITEM_GREAT_BALL')] > 50:
+                pokeball = ItemId.Value('ITEM_GREAT_BALL')
+            elif self.item[ItemId.Value('ITEM_POKE_BALL')] > 5:
+                pokeball = ItemId.Value('ITEM_POKE_BALL')
+            else:
+                log.warning('CATCH_POKEMON no balls!')
+
+            self._catch_pokemon(pokeball, pokemon)
+            ret = self._call()
+            while ret == 2 or ret == 4:
+                self._catch_pokemon(pokeball, pokemon)
+                ret = self._call()
 
     def _encounter(self, pokemon):
         self._api.encounter(
@@ -366,20 +410,8 @@ class Client:
             player_latitude=self._lat_f2i,
             player_longitude=self._lng_f2i)
 
-
-    @chain_api
-    def catch_pokemon(self, pokemon):
-        if self.item[ItemId.Value('ITEM_GREAT_BALL')] > 50:
-            pokeball = ItemId.Value('ITEM_GREAT_BALL')
-        elif self.item[ItemId.Value('ITEM_POKE_BALL')] > 5:
-            pokeball = ItemId.Value('ITEM_POKE_BALL')
-        else:
-            log.warning('CATCH_POKEMON no balls!')
-
-        self._encounter(pokemon)
-        ret = self._call()
-        if ret:
-            self._api.catch_pokemon(
+    def _catch_pokemon(self, pokeball, pokemon):
+        self._api.catch_pokemon(
                 encounter_id=pokemon['encounter_id'],
                 pokeball=pokeball,
                 normalized_reticle_size=1.950,
@@ -387,8 +419,6 @@ class Client:
                 hit_pokemon=1,
                 spin_modifier=1,
                 normalized_hit_position=1)
-            self._call()
-
 
     # Spin the pokestop
     @chain_api
