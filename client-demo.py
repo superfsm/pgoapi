@@ -159,6 +159,9 @@ def show_map(pokestops, wild_pokemons):
         url_string += '{},{}|'.format(pokestop['latitude'], pokestop['longitude'])
     url_string=url_string[:-1]
 
+    if len(pokestops):
+        url_string += '&markers={},{}'.format(pokestops[0]['latitude'], pokestops[0]['longitude'])
+
     if len(wild_pokemons):
         for wild_pokemon in wild_pokemons:
             url_string += '&markers={},{}'.format(wild_pokemon['latitude'], wild_pokemon['longitude'])
