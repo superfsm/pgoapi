@@ -307,8 +307,8 @@ class Client:
                 self.recycle_inventory_item(item_id, count-30)
             if item_id == ItemId.Value('ITEM_REVIVE') and count > 30:
                 self.recycle_inventory_item(item_id, count-30)
-            if item_id == ItemId.Value('ITEM_RAZZ_BERRY') and count > 50:
-                self.recycle_inventory_item(item_id, count - 50)
+            if item_id == ItemId.Value('ITEM_RAZZ_BERRY') and count > 30:
+                self.recycle_inventory_item(item_id, count - 30)
             if item_id == ItemId.Value('ITEM_POKE_BALL') and count > 20:
                 self.recycle_inventory_item(item_id, count-30)
             if item_id == ItemId.Value('ITEM_GREAT_BALL') and count > 50:
@@ -424,10 +424,10 @@ class Client:
             ret = -1
             while ret == -1 or ret == 2 or ret == 4:
 
-                self.use_item_capture(pokemon)
+
 
                 if (pokemon_id in evolvable and cp > 500) or ((pokemon_id not in evolvable) and cp > 1000):
-
+                    self.use_item_capture(pokemon)
                     if self.item[ItemId.Value('ITEM_ULTRA_BALL')] > 0:
                         pokeball = ItemId.Value('ITEM_ULTRA_BALL')
                     elif self.item[ItemId.Value('ITEM_GREAT_BALL')] > 0:
@@ -438,6 +438,9 @@ class Client:
                         log.warning('CATCH_POKEMON no balls!')
                         return
                 else:
+                    if self.item[ItemId.Value('ITEM_RAZZ_BERRY')] > 30:
+                        self.use_item_capture(pokemon)
+
                     if self.item[ItemId.Value('ITEM_POKE_BALL')] > 0:
                         pokeball = ItemId.Value('ITEM_POKE_BALL')
                     elif self.item[ItemId.Value('ITEM_GREAT_BALL')] > 0:
