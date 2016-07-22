@@ -319,6 +319,7 @@ class Client:
                     if pokemon['cp'] < 1000:
                         log.info('RELEASING #%3d CP=%d' % (idx,pokemon['cp']))
                         self.release_pokemon(pokemon['id'])
+
             if idx in evolvable and len(self.pokemon[idx]) > 2:
                 for pokemon in self.pokemon[idx][2:]:
                     if pokemon['cp'] < 450:
