@@ -219,7 +219,7 @@ class Client:
                 elif pokemon['is_egg'] is True:
                     self.egg.append(pokemon)
 
-                for idx in range(POKEMON_ID_MAX):
+                for idx in range(POKEMON_ID_MAX+1):
                     self.pokemon[idx].sort(reverse=True, key=lambda p: p['cp'])
 
                 #Candy
@@ -302,7 +302,9 @@ class Client:
                 self.recycle_inventory_item(item_id, count-30)
             if item_id == ItemId.Value('ITEM_RAZZ_BERRY') and count > 50:
                 self.recycle_inventory_item(item_id, count - 50)
-            if item_id == ItemId.Value('ITEM_POKE_BALL') and count > 30:
+            if item_id == ItemId.Value('ITEM_POKE_BALL') and count > 20:
+                self.recycle_inventory_item(item_id, count-30)
+            if item_id == ItemId.Value('ITEM_GREAT_BALL') and count > 50:
                 self.recycle_inventory_item(item_id, count-30)
 
         self.summary()
@@ -316,7 +318,7 @@ class Client:
 
     @chain_api
     def bulk_release_pokemon(self):
-        for idx in range(POKEMON_ID_MAX):
+        for idx in range(POKEMON_ID_MAX+1):
             if idx not in evolvable and len(self.pokemon[idx]) >= 2:
                 for pokemon in self.pokemon[idx][1:]:
                     if pokemon['cp'] < 1000:
@@ -341,7 +343,7 @@ class Client:
             cnt_item += v
 
         cnt_pokemon = 0
-        for idx in range(POKEMON_ID_MAX):
+        for idx in range(POKEMON_ID_MAX+1):
             cnt_pokemon += len(self.pokemon[idx])
 
         exp = self.profile['experience'] - self.profile['prev_level_xp']
@@ -359,7 +361,7 @@ class Client:
         pprint.pprint(self.profile, indent=4)
 
         cnt_pokemon = 0
-        for idx in range(POKEMON_ID_MAX):
+        for idx in range(POKEMON_ID_MAX+1):
             if idx not in evolvable:
                 star = 'x'
             else:

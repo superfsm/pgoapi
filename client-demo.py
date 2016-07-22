@@ -199,15 +199,6 @@ def main():
 
     ################################################
 
-    # Operate on client
-
-    # client.move_to_obj(obj)
-    # client.move_to(*position)
-    # client.jump_to(*position)
-
-    # client.scan()
-    # client.fort_search(pokestop)
-
     ################################################ Test code
 
     client.scan().summary().status()
