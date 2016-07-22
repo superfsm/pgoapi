@@ -180,8 +180,11 @@ class Client:
                 # log.debug('POKEMON = {}'.format(wild_pokemon))
 
         # GET_HATCHED_EGGS
-        if responses['GET_HATCHED_EGGS']['success'] == True:
-            log.info('GET_HATCHED_EGGS exp = {}'.format(responses['GET_HATCHED_EGGS']['experience_awarded']))
+        if 'GET_HATCHED_EGGS' in responses:
+            if responses['GET_HATCHED_EGGS']['success'] == True:
+                log.info('GET_HATCHED_EGGS exp = {}'.format(responses['GET_HATCHED_EGGS']['experience_awarded']))
+            else
+                log.warning('GET_HATCHED_EGGS {}'.format(responses['GET_HATCHED_EGGS']['success']))
 
         # FORT_SEARCH
         if responses['FORT_SEARCH']:
