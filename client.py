@@ -37,10 +37,11 @@ from collections import defaultdict
 from pgoapi import PGoApi
 from pgoapi.utilities import f2i, h2f
 
-#from . import protos
+from Evolvable import evolvable
 from pgoapi.protos.POGOProtos.Inventory_pb2 import ItemId
 from pgoapi.protos.POGOProtos.Enums_pb2 import PokemonId
-from pgoapi.protos.POGOProtos.Networking.Responses_pb2 import (FortSearchResponse, EncounterResponse, CatchPokemonResponse, ReleasePokemonResponse, RecycleInventoryItemResponse)
+from pgoapi.protos.POGOProtos.Networking.Responses_pb2 import (FortSearchResponse, 
+    EncounterResponse, CatchPokemonResponse, ReleasePokemonResponse, RecycleInventoryItemResponse)
 
 from google.protobuf.internal import encoder
 from geopy.geocoders import GoogleV3
@@ -156,7 +157,8 @@ class Client:
 
         # Call api
         resp = self._api.call()
-        log.debug('Response dictionary: \n\r{}'.format(pprint.PrettyPrinter(indent=2, width=60).pformat(resp)))
+        log.debug('Response dictionary: \n\r{}'.format(
+            pprint.PrettyPrinter(indent=2, width=60).pformat(resp)))
 
         if not resp:
             return
@@ -182,7 +184,8 @@ class Client:
             experience_awarded = responses['FORT_SEARCH']['experience_awarded']
             result = responses['FORT_SEARCH']['result']
             if result:
-                log.info('FORT_SEARCH {}, EXP = {}'.format(FortSearchResponse.Result.Name(result),experience_awarded))
+                log.info('FORT_SEARCH {}, EXP = {}'.format(
+                    FortSearchResponse.Result.Name(result),experience_awarded))
                 if result == FortSearchResponse.Result.Value('INVENTORY_FULL'):
                     self.bulk_recycle_inventory_item()
             else:
@@ -233,7 +236,8 @@ class Client:
         # ENCOUNTER
         if 'ENCOUNTER' in responses:
             if responses['ENCOUNTER']['status']:
-                log.info('ENCOUNTER = {}'.format(EncounterResponse.Status.Name(responses['ENCOUNTER']['status'])))
+                log.info('ENCOUNTER = {}'.format(
+                    EncounterResponse.Status.Name(responses['ENCOUNTER']['status'])))
             else:
                 log.warning('ENCOUNTER = {}')
 
@@ -259,7 +263,8 @@ class Client:
 
 
             if status == 1:
-                log.info('CATCH_POKEMON EXP = {}'.format(sum(responses['CATCH_POKEMON']['capture_award']['xp'])))
+                log.info('CATCH_POKEMON EXP = {}'.format(
+                    sum(responses['CATCH_POKEMON']['capture_award']['xp'])))
             return status
 
         # RELEASE_POKEMON
@@ -267,7 +272,8 @@ class Client:
             candy_awarded = responses['RELEASE_POKEMON']['candy_awarded']
             result = responses['RELEASE_POKEMON']['result']
             if result:
-                log.info('RELEASE_POKEMON = {}, +{}'.format(ReleasePokemonResponse.Result.Name(result), candy_awarded))
+                log.info('RELEASE_POKEMON = {}, +{}'.format(
+                    ReleasePokemonResponse.Result.Name(result), candy_awarded))
             else:
                 log.warning('RELEASE_POKEMON = {}')
 
@@ -276,7 +282,8 @@ class Client:
             new_count = responses['RECYCLE_INVENTORY_ITEM']['new_count']
             result = responses['RECYCLE_INVENTORY_ITEM']['result']
             if result:
-                log.info('RECYCLE_INVENTORY_ITEM = {}, {} left'.format(RecycleInventoryItemResponse.Result.Name(result), new_count))
+                log.info('RECYCLE_INVENTORY_ITEM = {}, {} left'.format(
+                    RecycleInventoryItemResponse.Result.Name(result), new_count))
             else:
                 log.warning('RECYCLE_INVENTORY_ITEM = {}')
 
@@ -292,8 +299,8 @@ class Client:
                 self.recycle_inventory_item(item_id, count-50)
             if item_id == ItemId.Value('ITEM_RAZZ_BERRY') and count > 50:
                 self.recycle_inventory_item(item_id, count - 50)
-            if item_id == ItemId.Value('ITEM_POKE_BALL') and count > 30:
-                self.recycle_inventory_item(item_id, count-30)
+            if item_id == ItemId.Value('ITEM_POKE_BALL') and count > 50:
+                self.recycle_inventory_item(item_id, count-50)
 
         self.summary()
 
@@ -307,9 +314,15 @@ class Client:
     @chain_api
     def bulk_release_pokemon(self):
         for idx in range(POKEMON_ID_MAX):
-            if len(self.pokemon[idx]) > 2:
+            if idx not in evolvable and len(self.pokemon[idx]) >= 2:
+                for pokemon in self.pokemon[idx][1:]:
+                    if pokemon['cp'] < 1000:
+                        log.info('RELEASING #%3d CP=%d' % (idx,pokemon['cp']))
+                        self.release_pokemon(pokemon['id'])
+            if idx in evolvable and len(self.pokemon[idx]) > 2:
                 for pokemon in self.pokemon[idx][2:]:
-                    if pokemon['cp'] < 300:
+                    if pokemon['cp'] < 450:
+                        log.info('RELEASING #%3d CP=%d' % (idx,pokemon['cp']))
                         self.release_pokemon(pokemon['id'])
 
     @chain_api
@@ -347,7 +360,12 @@ class Client:
 
         cnt_pokemon = 0
         for idx in range(POKEMON_ID_MAX):
-            print '%03d (%15s): %3d =' % (idx, PokemonId.Name(idx), self.candy[idx]), [p['cp'] for p in self.pokemon[idx]]
+            if idx not in evolvable:
+                star = 'x'
+            else:
+                star = ''
+            print '%03d (%15s)[%1s]: %3d =' % (
+                idx, PokemonId.Name(idx), star, self.candy[idx]), [p['cp'] for p in self.pokemon[idx]]
             cnt_pokemon += len(self.pokemon[idx])
         print 'POKEMON # =\n   ', cnt_pokemon
 
@@ -364,7 +382,8 @@ class Client:
 
         exp = self.profile['experience'] - self.profile['prev_level_xp']
         exp_total = self.profile['next_level_xp'] - self.profile['prev_level_xp']
-        print '====Lv %d, %d/%d (%.2f%%)' % (self.profile['level'], exp, exp_total, float(exp)/exp_total*100)
+        print '====Lv %d, %d/%d (%.2f%%)' % (
+            self.profile['level'], exp, exp_total, float(exp)/exp_total*100)
 
     # Scan the map around you
     @chain_api
@@ -390,12 +409,13 @@ class Client:
         ret = self._call()
         if ret:
 
-            if self.item[ItemId.Value('ITEM_GREAT_BALL')] > 50:
-                pokeball = ItemId.Value('ITEM_GREAT_BALL')
-            elif self.item[ItemId.Value('ITEM_POKE_BALL')] > 5:
+            if self.item[ItemId.Value('ITEM_POKE_BALL')] > 0:
                 pokeball = ItemId.Value('ITEM_POKE_BALL')
+            elif self.item[ItemId.Value('ITEM_GREAT_BALL')] > 0:
+                pokeball = ItemId.Value('ITEM_GREAT_BALL')
             else:
                 log.warning('CATCH_POKEMON no balls!')
+                return
 
             self._catch_pokemon(pokeball, pokemon)
             ret = self._call()
