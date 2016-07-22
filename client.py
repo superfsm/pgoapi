@@ -40,7 +40,7 @@ from pgoapi.utilities import f2i, h2f
 from Evolvable import evolvable
 from pgoapi.protos.POGOProtos.Inventory_pb2 import ItemId
 from pgoapi.protos.POGOProtos.Enums_pb2 import PokemonId
-from pgoapi.protos.POGOProtos.Networking.Responses_pb2 import (FortSearchResponse, 
+from pgoapi.protos.POGOProtos.Networking.Responses_pb2 import (FortSearchResponse,
     EncounterResponse, CatchPokemonResponse, ReleasePokemonResponse, RecycleInventoryItemResponse)
 
 from google.protobuf.internal import encoder
@@ -246,7 +246,7 @@ class Client:
                     responses['ENCOUNTER']['wild_pokemon']['pokemon_data']['cp'],
                     responses['ENCOUNTER']['capture_probability']['capture_probability']))
                 # Bool, CP, ID
-                return (True, 
+                return (True,
                     responses['ENCOUNTER']['wild_pokemon']['pokemon_data']['cp'],
                     responses['ENCOUNTER']['wild_pokemon']['pokemon_data']['pokemon_id'])
             else:
@@ -289,6 +289,11 @@ class Client:
                     RecycleInventoryItemResponse.Result.Name(result), new_count))
             else:
                 log.warning('RECYCLE_INVENTORY_ITEM = {}')
+
+        # USE_ITEM_CAPTURE
+        log.log('USE_ITEM_CAPTURE {}'.format(responses['USE_ITEM_CAPTURE']['success']))
+        if responses['USE_ITEM_CAPTURE']['success'] != True:
+            self.use_item_capture()
 
     @chain_api
     def bulk_recycle_inventory_item(self):
@@ -414,30 +419,44 @@ class Client:
             cp = ret[1]
             pokemon_id = ret[2]
 
-            if (pokemon_id in evolvable and cp > 500) or ((pokemon_id not in evolvable) and cp > 1000):
-                if self.item[ItemId.Value('ITEM_ULTRA_BALL')] > 0:
-                    pokeball = ItemId.Value('ITEM_ULTRA_BALL')
-                elif self.item[ItemId.Value('ITEM_GREAT_BALL')] > 0:
-                    pokeball = ItemId.Value('ITEM_GREAT_BALL')
-                elif self.item[ItemId.Value('ITEM_POKE_BALL')] > 0:
-                    pokeball = ItemId.Value('ITEM_POKE_BALL')
-                else:
-                    log.warning('CATCH_POKEMON no balls!')
-                    return
-            else:
-                if self.item[ItemId.Value('ITEM_POKE_BALL')] > 0:
-                    pokeball = ItemId.Value('ITEM_POKE_BALL')
-                elif self.item[ItemId.Value('ITEM_GREAT_BALL')] > 0:
-                    pokeball = ItemId.Value('ITEM_GREAT_BALL')
-                else:
-                    log.warning('CATCH_POKEMON no balls!')
-                    return
+            ret = -1
+            while ret == -1 or ret == 2 or ret == 4:
 
-            self._catch_pokemon(pokeball, pokemon)
-            ret = self._call()
-            while ret == 2 or ret == 4:
+                self.use_item_capture(pokemon)
+
+                if (pokemon_id in evolvable and cp > 500) or ((pokemon_id not in evolvable) and cp > 1000):
+
+                    if self.item[ItemId.Value('ITEM_ULTRA_BALL')] > 0:
+                        pokeball = ItemId.Value('ITEM_ULTRA_BALL')
+                    elif self.item[ItemId.Value('ITEM_GREAT_BALL')] > 0:
+                        pokeball = ItemId.Value('ITEM_GREAT_BALL')
+                    elif self.item[ItemId.Value('ITEM_POKE_BALL')] > 0:
+                        pokeball = ItemId.Value('ITEM_POKE_BALL')
+                    else:
+                        log.warning('CATCH_POKEMON no balls!')
+                        return
+                else:
+                    if self.item[ItemId.Value('ITEM_POKE_BALL')] > 0:
+                        pokeball = ItemId.Value('ITEM_POKE_BALL')
+                    elif self.item[ItemId.Value('ITEM_GREAT_BALL')] > 0:
+                        pokeball = ItemId.Value('ITEM_GREAT_BALL')
+                    else:
+                        log.warning('CATCH_POKEMON no balls!')
+                        return
+
                 self._catch_pokemon(pokeball, pokemon)
                 ret = self._call()
+
+    @chain_api
+    def use_item_capture(self, pokemon):
+        if self.item[ItemId.Value('ITEM_RAZZ_BERRY')] > 0:
+            self._api.use_item_capture(
+                item_id=ItemId.Value('ITEM_RAZZ_BERRY'),
+                encounter_id=pokemon['encounter_id'],
+                spawn_point_guid=pokemon['spawnpoint_id'])
+            self._call()
+        else:
+            log.info('USE_ITEM_CAPTURE, out of berry :(')
 
     def _encounter(self, pokemon):
         self._api.encounter(
