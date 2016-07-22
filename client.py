@@ -182,7 +182,8 @@ class Client:
         # GET_HATCHED_EGGS
         if 'GET_HATCHED_EGGS' in responses:
             if responses['GET_HATCHED_EGGS']['success'] == True:
-                log.info('GET_HATCHED_EGGS exp = {}'.format(responses['GET_HATCHED_EGGS']['experience_awarded']))
+                if responses['GET_HATCHED_EGGS']['exp']:
+                    log.info('GET_HATCHED_EGGS exp = {}'.format(responses['GET_HATCHED_EGGS']['experience_awarded']))
             else:
                 log.warning('GET_HATCHED_EGGS {}'.format(responses['GET_HATCHED_EGGS']['success']))
 
@@ -434,9 +435,6 @@ class Client:
 
             ret = -1
             while ret == -1 or ret == 2 or ret == 4:
-
-
-
                 if (pokemon_id in evolvable and cp > 500) or ((pokemon_id not in evolvable) and cp > 1000):
                     self.use_item_capture(pokemon)
                     if self.item[ItemId.Value('ITEM_ULTRA_BALL')] > 0:
@@ -492,6 +490,20 @@ class Client:
                 spin_modifier=1,
                 normalized_hit_position=1)
 
+    # @chain_api
+    # def use_item_egg_incubator(self):
+    #     if self.item[ItemId.Value('ITEM_POKE_BALL')] > 0:
+    #         item_id = ItemId.Value('ITEM_POKE_BALL')
+
+    #     if self.item[ItemId.Value('ITEM_INCUBATOR_BASIC_UNLIMITED')] > 0:
+    #         item_id = ItemId.Value('ITEM_INCUBATOR_BASIC_UNLIMITED')
+
+    # def _use_item_egg_incubator(self, item_id, pokemon_id):
+
+    #     self._api.use_item_egg_incubator(
+    #         item_id=
+    #         pokemon_id=)
+
     # Spin the pokestop
     @chain_api
     def fort_search(self, pokestop):
@@ -512,7 +524,6 @@ class Client:
         self._api.get_inventory()
         resp = self._api._call()
         log.info('Response dictionary: \n\r{}'.format(json.dumps(resp, indent=2)))
-
 
     def _get_player(self):
         self._api.get_player()
