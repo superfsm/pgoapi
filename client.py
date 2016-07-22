@@ -183,7 +183,7 @@ class Client:
         if 'GET_HATCHED_EGGS' in responses:
             if responses['GET_HATCHED_EGGS']['success'] == True:
                 log.info('GET_HATCHED_EGGS exp = {}'.format(responses['GET_HATCHED_EGGS']['experience_awarded']))
-            else
+            else:
                 log.warning('GET_HATCHED_EGGS {}'.format(responses['GET_HATCHED_EGGS']['success']))
 
         # FORT_SEARCH
