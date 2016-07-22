@@ -37,7 +37,7 @@ from collections import defaultdict
 from pgoapi import PGoApi
 from pgoapi.utilities import f2i, h2f
 
-#from . import protos
+from Evolvable import evolvable
 from pgoapi.protos.POGOProtos.Inventory_pb2 import ItemId
 from pgoapi.protos.POGOProtos.Enums_pb2 import PokemonId
 from pgoapi.protos.POGOProtos.Networking.Responses_pb2 import (FortSearchResponse, EncounterResponse, CatchPokemonResponse, ReleasePokemonResponse, RecycleInventoryItemResponse)
@@ -292,8 +292,8 @@ class Client:
                 self.recycle_inventory_item(item_id, count-50)
             if item_id == ItemId.Value('ITEM_RAZZ_BERRY') and count > 50:
                 self.recycle_inventory_item(item_id, count - 50)
-            if item_id == ItemId.Value('ITEM_POKE_BALL') and count > 30:
-                self.recycle_inventory_item(item_id, count-30)
+            if item_id == ItemId.Value('ITEM_POKE_BALL') and count > 50:
+                self.recycle_inventory_item(item_id, count-50)
 
         self.summary()
 
@@ -307,10 +307,16 @@ class Client:
     @chain_api
     def bulk_release_pokemon(self):
         for idx in range(POKEMON_ID_MAX):
-            if len(self.pokemon[idx]) > 2:
+            if idx not in evolvable and len(self.pokemon[idx]) >= 2:
+                for pokemon in self.pokemon[idx][1:]:
+                    if pokemon['cp'] < 1000:
+                        log.info('RELEASING #%3d CP=%d' % (idx,pokemon['cp']))
+                        #self.release_pokemon(pokemon['id'])
+            if idx in evolvable and len(self.pokemon[idx]) > 2:
                 for pokemon in self.pokemon[idx][2:]:
-                    if pokemon['cp'] < 300:
-                        self.release_pokemon(pokemon['id'])
+                    if pokemon['cp'] < 450:
+                        log.info('RELEASING #%3d CP=%d' % (idx,pokemon['cp']))
+                        #self.release_pokemon(pokemon['id'])
 
     @chain_api
     def release_pokemon(self, pokemon_id):
@@ -390,12 +396,13 @@ class Client:
         ret = self._call()
         if ret:
 
-            if self.item[ItemId.Value('ITEM_GREAT_BALL')] > 50:
-                pokeball = ItemId.Value('ITEM_GREAT_BALL')
-            elif self.item[ItemId.Value('ITEM_POKE_BALL')] > 5:
+            if self.item[ItemId.Value('ITEM_POKE_BALL')] > 0:
                 pokeball = ItemId.Value('ITEM_POKE_BALL')
+            elif self.item[ItemId.Value('ITEM_GREAT_BALL')] > 0:
+                pokeball = ItemId.Value('ITEM_GREAT_BALL')
             else:
                 log.warning('CATCH_POKEMON no balls!')
+                return
 
             self._catch_pokemon(pokeball, pokemon)
             ret = self._call()
