@@ -179,6 +179,10 @@ class Client:
                 self.wild_pokemon.append(wild_pokemon)
                 # log.debug('POKEMON = {}'.format(wild_pokemon))
 
+        # GET_HATCHED_EGGS
+        if responses['GET_HATCHED_EGGS']['success'] == True:
+            log.info('GET_HATCHED_EGGS exp = {}'.format(responses['GET_HATCHED_EGGS']['experience_awarded']))
+
         # FORT_SEARCH
         if responses['FORT_SEARCH']:
             experience_awarded = responses['FORT_SEARCH']['experience_awarded']
@@ -291,7 +295,8 @@ class Client:
                 log.warning('RECYCLE_INVENTORY_ITEM = {}')
 
         # USE_ITEM_CAPTURE
-        log.info('USE_ITEM_CAPTURE success = {}'.format(responses['USE_ITEM_CAPTURE']['success']))
+        if 'USE_ITEM_CAPTURE' in responses:
+            log.info('USE_ITEM_CAPTURE success = {}'.format(responses['USE_ITEM_CAPTURE']['success']))
         if responses['USE_ITEM_CAPTURE']['success'] == True:
             return True
         else:
@@ -406,6 +411,7 @@ class Client:
         timestamps = [0, ] * len(cell_ids)
         self._get_inventory()
         self._get_player()
+        self._get_hatched_eggs()
         self._api.get_map_objects(
             latitude=self._lat_f2i,
             longitude=self._lng_f2i,
@@ -508,6 +514,8 @@ class Client:
     def _get_player(self):
         self._api.get_player()
 
+    def _get_hatched_eggs(self):
+        self._api.get_hatched_eggs()
 
     def _get_inventory(self):
         self.egg = []
