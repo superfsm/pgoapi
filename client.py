@@ -245,11 +245,14 @@ class Client:
                 log.info('ENCOUNTER CP = {} PROB = {}'.format(
                     responses['ENCOUNTER']['wild_pokemon']['pokemon_data']['cp'],
                     responses['ENCOUNTER']['capture_probability']['capture_probability']))
-                return True
+                # Bool, CP, ID
+                return (True, 
+                    responses['ENCOUNTER']['wild_pokemon']['pokemon_data']['cp'],
+                    responses['ENCOUNTER']['wild_pokemon']['pokemon_data']['pokemon_id'])
             else:
                 if responses['ENCOUNTER']['status'] == EncounterResponse.Status.Value('POKEMON_INVENTORY_FULL'):
                     self.bulk_release_pokemon()
-                return False
+                return (False, )
 
         # CATCH_POKEMON
         if 'CATCH_POKEMON' in responses:
@@ -293,14 +296,14 @@ class Client:
 
             if item_id == ItemId.Value('ITEM_POTION'):
                 self.recycle_inventory_item(item_id, count)
-            if item_id == ItemId.Value('ITEM_SUPER_POTION') and count > 50:
-                self.recycle_inventory_item(item_id, count-50)
-            if item_id == ItemId.Value('ITEM_REVIVE') and count > 50:
-                self.recycle_inventory_item(item_id, count-50)
+            if item_id == ItemId.Value('ITEM_SUPER_POTION') and count > 30:
+                self.recycle_inventory_item(item_id, count-30)
+            if item_id == ItemId.Value('ITEM_REVIVE') and count > 30:
+                self.recycle_inventory_item(item_id, count-30)
             if item_id == ItemId.Value('ITEM_RAZZ_BERRY') and count > 50:
                 self.recycle_inventory_item(item_id, count - 50)
-            if item_id == ItemId.Value('ITEM_POKE_BALL') and count > 50:
-                self.recycle_inventory_item(item_id, count-50)
+            if item_id == ItemId.Value('ITEM_POKE_BALL') and count > 30:
+                self.recycle_inventory_item(item_id, count-30)
 
         self.summary()
 
@@ -344,7 +347,7 @@ class Client:
         exp = self.profile['experience'] - self.profile['prev_level_xp']
         exp_total = self.profile['next_level_xp'] - self.profile['prev_level_xp']
 
-        print '[Lv %d, %d/%d, (%.2f%%)] ITEM = %d/%d, POKEMON = %d/%d' % (
+        print '[Lv %d, %d/%d, (%.2f%%)]\nITEM = %d/%d, POKEMON = %d/%d' % (
             self.profile['level'],exp,exp_total,float(exp)/exp_total*100,
             cnt_item, self.profile['max_item_storage'],
             cnt_pokemon, self.profile['max_pokemon_storage'])
@@ -404,15 +407,29 @@ class Client:
 
         self._encounter(pokemon)
         ret = self._call()
-        if ret:
+        if ret[0]:
 
-            if self.item[ItemId.Value('ITEM_POKE_BALL')] > 0:
-                pokeball = ItemId.Value('ITEM_POKE_BALL')
-            elif self.item[ItemId.Value('ITEM_GREAT_BALL')] > 0:
-                pokeball = ItemId.Value('ITEM_GREAT_BALL')
+            cp = ret[1]
+            pokemon_id = ret[2]
+
+            if (pokemon_id in evolvable and cp > 500) or ((pokemon_id not in evolvable) and cp > 1000):
+                if self.item[ItemId.Value('ITEM_ULTRA_BALL')] > 0:
+                    pokeball = ItemId.Value('ITEM_ULTRA_BALL')
+                elif self.item[ItemId.Value('ITEM_GREAT_BALL')] > 0:
+                    pokeball = ItemId.Value('ITEM_GREAT_BALL')
+                elif self.item[ItemId.Value('ITEM_POKE_BALL')] > 0:
+                    pokeball = ItemId.Value('ITEM_POKE_BALL')
+                else:
+                    log.warning('CATCH_POKEMON no balls!')
+                    return
             else:
-                log.warning('CATCH_POKEMON no balls!')
-                return
+                if self.item[ItemId.Value('ITEM_POKE_BALL')] > 0:
+                    pokeball = ItemId.Value('ITEM_POKE_BALL')
+                elif self.item[ItemId.Value('ITEM_GREAT_BALL')] > 0:
+                    pokeball = ItemId.Value('ITEM_GREAT_BALL')
+                else:
+                    log.warning('CATCH_POKEMON no balls!')
+                    return
 
             self._catch_pokemon(pokeball, pokemon)
             ret = self._call()
