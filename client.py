@@ -22,35 +22,32 @@ OR OTHER DEALINGS IN THE SOFTWARE.
 
 """
 
-import os
-import re
+
 import json
-import struct
 import logging
-import requests
-import argparse
-import getpass
+
 import pprint
 import time
 from collections import defaultdict
 
 from pgoapi import PGoApi
-from pgoapi.utilities import f2i, h2f
+from pgoapi.utilities import f2i
 
 from Evolvable import evolvable
 from pgoapi.protos.POGOProtos.Inventory_pb2 import ItemId
 from pgoapi.protos.POGOProtos.Enums_pb2 import PokemonId
-from pgoapi.protos.POGOProtos.Networking.Responses_pb2 import (FortSearchResponse,
-    EncounterResponse, CatchPokemonResponse, ReleasePokemonResponse, RecycleInventoryItemResponse)
+from pgoapi.protos.POGOProtos.Networking.Responses_pb2 import (
+    FortSearchResponse, EncounterResponse, CatchPokemonResponse, ReleasePokemonResponse,
+    RecycleInventoryItemResponse)
 
 from google.protobuf.internal import encoder
-from geopy.geocoders import GoogleV3
 from geopy.distance import great_circle
 from s2sphere import CellId, LatLng
 
 log = logging.getLogger(__name__)
 
 POKEMON_ID_MAX = 151
+
 
 class MyDict(dict):
 
@@ -63,11 +60,15 @@ class MyDict(dict):
             val = MyDict(val)
         return val
 
+# with open('pokedex.json', 'r') as f:
+#     pokedex = json.load(f)
+
 def chain_api(func):
     def wrapper(self, *args, **kwargs):
         func(self, *args, **kwargs)
         return self
     return wrapper
+
 
 class Client:
 
@@ -102,12 +103,12 @@ class Client:
 
     # Move to object
     @chain_api
-    def move_to_obj(self, obj, speed = 20):
-        self.move_to(obj['latitude'], obj['longitude'], speed = speed)
+    def move_to_obj(self, obj, speed=20):
+        self.move_to(obj['latitude'], obj['longitude'], speed=speed)
 
     # Move to position at speed(m)/s
     @chain_api
-    def move_to(self, lat, lng, speed = 20):
+    def move_to(self, lat, lng, speed=20):
         a = (self._lat, self._lng)
         b = (lat, lng)
 
@@ -124,7 +125,7 @@ class Client:
 
     # Jump to position
     @chain_api
-    def jump_to(self, lat, lng, alt = 0):
+    def jump_to(self, lat, lng, alt=0):
         log.debug('Move to - Lat: %s Long: %s Alt: %s', lat, lng, alt)
 
         self._api.set_position(lat, lng, 0)
@@ -181,9 +182,10 @@ class Client:
 
         # GET_HATCHED_EGGS
         if 'GET_HATCHED_EGGS' in responses:
-            if responses['GET_HATCHED_EGGS']['success'] == True:
+            if responses['GET_HATCHED_EGGS']['success'] is True:
                 if responses['GET_HATCHED_EGGS']['exp']:
-                    log.info('GET_HATCHED_EGGS exp = {}'.format(responses['GET_HATCHED_EGGS']['experience_awarded']))
+                    log.info('GET_HATCHED_EGGS exp = {}'.format(
+                        responses['GET_HATCHED_EGGS']['experience_awarded']))
             else:
                 log.warning('GET_HATCHED_EGGS {}'.format(responses['GET_HATCHED_EGGS']['success']))
 
@@ -193,7 +195,7 @@ class Client:
             result = responses['FORT_SEARCH']['result']
             if result:
                 log.info('FORT_SEARCH {}, EXP = {}'.format(
-                    FortSearchResponse.Result.Name(result),experience_awarded))
+                    FortSearchResponse.Result.Name(result), experience_awarded))
                 if result == FortSearchResponse.Result.Value('INVENTORY_FULL'):
                     self.bulk_recycle_inventory_item()
             else:
@@ -208,29 +210,29 @@ class Client:
                     log.warning('*** captured deleted_item_key in inventory')
                     log.warning(inventory_item)
 
-                #Item
+                # Item
                 item_id = inventory_item['inventory_item_data']['item']['item_id']
                 count = inventory_item['inventory_item_data']['item']['count']
                 if item_id and count:
                     self.item[item_id] = count
                     # log.debug('ITEM {} = {}'.format(item, count))
 
-                #Stats
+                # Stats
                 player_stats = inventory_item['inventory_item_data']['player_stats']
                 self.profile.update(player_stats)
                 # log.debug('PROFILE {}'.format(self.profile))
 
-                #Pokemon
+                # Pokemon
                 pokemon = inventory_item['inventory_item_data']['pokemon_data']
                 if pokemon['cp']:
                     self.pokemon[pokemon['pokemon_id']].append(pokemon)
                 elif pokemon['is_egg'] is True:
                     self.egg.append(pokemon)
 
-                for idx in range(POKEMON_ID_MAX+1):
+                for idx in range(1, POKEMON_ID_MAX + 1):
                     self.pokemon[idx].sort(reverse=True, key=lambda p: p['cp'])
 
-                #Candy
+                # Candy
                 pokemon_family = inventory_item['inventory_item_data']['pokemon_family']
                 candy = pokemon_family['candy']
                 family_id = pokemon_family['family_id']
@@ -238,7 +240,7 @@ class Client:
                     self.candy[family_id] = candy
 
         # GET_PLAYER
-        if responses['GET_PLAYER']['success'] == True:
+        if responses['GET_PLAYER']['success'] is True:
             self.profile.update(responses['GET_PLAYER']['player_data'])
 
         # ENCOUNTER
@@ -254,7 +256,8 @@ class Client:
                     responses['ENCOUNTER']['wild_pokemon']['pokemon_data']['cp'],
                     responses['ENCOUNTER']['capture_probability']['capture_probability']))
                 # Bool, CP, ID
-                return (True,
+                return (
+                    True,
                     responses['ENCOUNTER']['wild_pokemon']['pokemon_data']['cp'],
                     responses['ENCOUNTER']['wild_pokemon']['pokemon_data']['pokemon_id'])
             else:
@@ -271,7 +274,6 @@ class Client:
                 log.info('CATCH_POKEMON = {}'.format(CatchPokemonResponse.CatchStatus.Name(status)))
             else:
                 log.warning('CATCH_POKEMON = {}')
-
 
             if status == 1:
                 log.info('CATCH_POKEMON EXP = {}'.format(
@@ -301,7 +303,7 @@ class Client:
         # USE_ITEM_CAPTURE
         if 'USE_ITEM_CAPTURE' in responses:
             log.info('USE_ITEM_CAPTURE success = {}'.format(responses['USE_ITEM_CAPTURE']['success']))
-        if responses['USE_ITEM_CAPTURE']['success'] == True:
+        if responses['USE_ITEM_CAPTURE']['success'] is True:
             return True
         else:
             return False
@@ -315,15 +317,15 @@ class Client:
             if item_id == ItemId.Value('ITEM_SUPER_POTION'):
                 self.recycle_inventory_item(item_id, count)
             if item_id == ItemId.Value('ITEM_HYPER_POTION') and count > 50:
-                self.recycle_inventory_item(item_id, count-50)
+                self.recycle_inventory_item(item_id, count - 50)
             if item_id == ItemId.Value('ITEM_REVIVE') and count > 30:
-                self.recycle_inventory_item(item_id, count-30)
+                self.recycle_inventory_item(item_id, count - 30)
             if item_id == ItemId.Value('ITEM_RAZZ_BERRY') and count > 30:
                 self.recycle_inventory_item(item_id, count - 30)
             if item_id == ItemId.Value('ITEM_POKE_BALL') and count > 50:
-                self.recycle_inventory_item(item_id, count-50)
+                self.recycle_inventory_item(item_id, count - 50)
             if item_id == ItemId.Value('ITEM_GREAT_BALL') and count > 50:
-                self.recycle_inventory_item(item_id, count-50)
+                self.recycle_inventory_item(item_id, count - 50)
 
         self.summary()
 
@@ -336,17 +338,17 @@ class Client:
 
     @chain_api
     def bulk_release_pokemon(self):
-        for idx in range(POKEMON_ID_MAX+1):
+        for idx in range(1, POKEMON_ID_MAX + 1):
             if idx not in evolvable and len(self.pokemon[idx]) >= 2:
                 for pokemon in self.pokemon[idx][1:]:
-                    if pokemon['cp'] < 1000:
-                        log.info('RELEASING #%3d CP=%d' % (idx,pokemon['cp']))
+                    if pokemon['cp'] < 1100:
+                        log.info('RELEASING #%3d CP=%d' % (idx, pokemon['cp']))
                         self.release_pokemon(pokemon['id'])
 
             if idx in evolvable and len(self.pokemon[idx]) > 2:
                 for pokemon in self.pokemon[idx][2:]:
-                    if pokemon['cp'] < 450:
-                        log.info('RELEASING #%3d CP=%d' % (idx,pokemon['cp']))
+                    if pokemon['cp'] < 500:
+                        log.info('RELEASING #%3d CP=%d' % (idx, pokemon['cp']))
                         self.release_pokemon(pokemon['id'])
 
     @chain_api
@@ -361,14 +363,14 @@ class Client:
             cnt_item += v
 
         cnt_pokemon = 0
-        for idx in range(POKEMON_ID_MAX+1):
+        for idx in range(1, POKEMON_ID_MAX + 1):
             cnt_pokemon += len(self.pokemon[idx])
 
         exp = self.profile['experience'] - self.profile['prev_level_xp']
         exp_total = self.profile['next_level_xp'] - self.profile['prev_level_xp']
 
         print '[Lv %d, %d/%d, (%.2f%%)]\nITEM = %d/%d, POKEMON = %d/%d' % (
-            self.profile['level'],exp,exp_total,float(exp)/exp_total*100,
+            self.profile['level'], exp, exp_total, float(exp) / exp_total * 100,
             cnt_item, self.profile['max_item_storage'],
             cnt_pokemon, self.profile['max_pokemon_storage'])
 
@@ -379,13 +381,15 @@ class Client:
         pprint.pprint(self.profile, indent=4)
 
         cnt_pokemon = 0
-        for idx in range(POKEMON_ID_MAX+1):
+        for idx in range(1, POKEMON_ID_MAX + 1):
+
             if idx not in evolvable:
-                star = 'x'
+                candy = '-'
             else:
-                star = ''
+                candy = ''
+
             print '%03d (%15s)[%1s]: %3d =' % (
-                idx, PokemonId.Name(idx), star, self.candy[idx]), [p['cp'] for p in self.pokemon[idx]]
+                idx, PokemonId.Name(idx), candy, self.candy[idx]), [p['cp'] for p in self.pokemon[idx]]
             cnt_pokemon += len(self.pokemon[idx])
 
         cnt_item = 0
