@@ -350,7 +350,7 @@ class Client:
             if item_id == ItemId.Value('ITEM_GREAT_BALL'):
                 cnt_great_ball = count
             if item_id == ItemId.Value('ITEM_ULTRA_BALL'):
-                cnt_great_ball = count
+                cnt_ultra_ball = count
 
         if cnt_great_ball + cnt_ultra_ball > 100:
             self.recycle_inventory_item(ItemId.Value('ITEM_POKE_BALL'), cnt_poke_ball)
@@ -521,10 +521,20 @@ class Client:
                     if self.item[ItemId.Value('ITEM_RAZZ_BERRY')] > 30:
                         self.use_item_capture(pokemon)
 
-                    if self.item[ItemId.Value('ITEM_POKE_BALL')] > 0:
+                        cnt_poke_ball = self.item[ItemId.Value('ITEM_POKE_BALL')]
+                        cnt_great_ball = self.item[ItemId.Value('ITEM_GREAT_BALL')]
+                        cnt_ultra_ball = self.item[ItemId.Value('ITEM_ULTRA_BALL')]
+
+                    if cnt_ultra_ball > 100:
+                        pokeball = ItemId.Value('ITEM_ULTRA_BALL')
+                    elif cnt_great_ball > 0 and cnt_great_ball + cnt_ultra_ball > 100:
+                        pokeball = ItemId.Value('ITEM_GREAT_BALL')
+                    elif self.item[ItemId.Value('ITEM_POKE_BALL')] > 0:
                         pokeball = ItemId.Value('ITEM_POKE_BALL')
                     elif self.item[ItemId.Value('ITEM_GREAT_BALL')] > 0:
                         pokeball = ItemId.Value('ITEM_GREAT_BALL')
+                    elif self.item[ItemId.Value('ITEM_ULTRA_BALL')] > 0:
+                        pokeball = ItemId.Value('ITEM_ULTRA_BALL')
                     else:
                         log.warning('CATCH_POKEMON no balls!')
                         return
