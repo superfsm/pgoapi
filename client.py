@@ -38,7 +38,7 @@ from pgoapi.protos.POGOProtos.Inventory_pb2 import ItemId
 from pgoapi.protos.POGOProtos.Enums_pb2 import PokemonId
 from pgoapi.protos.POGOProtos.Networking.Responses_pb2 import (
     FortSearchResponse, EncounterResponse, CatchPokemonResponse, ReleasePokemonResponse,
-    RecycleInventoryItemResponse)
+    RecycleInventoryItemResponse, UseItemEggIncubatorResponse)
 
 from google.protobuf.internal import encoder
 from geopy.distance import great_circle
@@ -63,6 +63,7 @@ class MyDict(dict):
 # with open('pokedex.json', 'r') as f:
 #     pokedex = json.load(f)
 
+
 def chain_api(func):
     def wrapper(self, *args, **kwargs):
         func(self, *args, **kwargs)
@@ -84,6 +85,7 @@ class Client:
         self._alt_f2i = 0
 
         self.profile = {}
+        self.incubator = {}
         self.item = defaultdict(int)
         self.pokemon = defaultdict(list)
         self.candy = defaultdict(int)
@@ -159,7 +161,7 @@ class Client:
         # Call api
         resp = self._api.call()
         log.debug('Response dictionary: \n\r{}'.format(
-            pprint.PrettyPrinter(indent=2, width=60).pformat(resp)))
+            pprint.PrettyPrinter(indent=2, width=3).pformat(resp)))
 
         if not resp:
             return
@@ -239,6 +241,12 @@ class Client:
                 if candy and family_id:
                     self.candy[family_id] = candy
 
+                # Incubators
+                egg_incubators = inventory_item['inventory_item_data']['egg_incubators']['egg_incubator']
+                if egg_incubators:
+                    for egg_incubator in egg_incubators:
+                        self.incubator[egg_incubator['id']] = egg_incubator
+
         # GET_PLAYER
         if responses['GET_PLAYER']['success'] is True:
             self.profile.update(responses['GET_PLAYER']['player_data'])
@@ -303,10 +311,16 @@ class Client:
         # USE_ITEM_CAPTURE
         if 'USE_ITEM_CAPTURE' in responses:
             log.info('USE_ITEM_CAPTURE success = {}'.format(responses['USE_ITEM_CAPTURE']['success']))
-        if responses['USE_ITEM_CAPTURE']['success'] is True:
-            return True
-        else:
-            return False
+
+            if responses['USE_ITEM_CAPTURE']['success'] is True:
+                return True
+            else:
+                return False
+
+        # USE_ITEM_EGG_INCUBATOR
+        if 'USE_ITEM_EGG_INCUBATOR' in responses:
+            log.info('USE_ITEM_EGG_INCUBATOR result = {}'.format(
+                UseItemEggIncubatorResponse.Result.Name(responses['USE_ITEM_EGG_INCUBATOR']['result'])))
 
     @chain_api
     def bulk_recycle_inventory_item(self):
@@ -369,14 +383,13 @@ class Client:
         exp = self.profile['experience'] - self.profile['prev_level_xp']
         exp_total = self.profile['next_level_xp'] - self.profile['prev_level_xp']
 
-        print '[Lv %d, %d/%d, (%.2f%%)]\nITEM = %d/%d, POKEMON = %d/%d' % (
+        print '[Lv %d, %d/%d, (%.2f%%)]\nWALK = %.3f ITEM = %d/%d, POKEMON = %d/%d' % (
             self.profile['level'], exp, exp_total, float(exp) / exp_total * 100,
-            cnt_item, self.profile['max_item_storage'],
+            self.profile['km_walked'], cnt_item, self.profile['max_item_storage'],
             cnt_pokemon, self.profile['max_pokemon_storage'])
 
     @chain_api
     def summary(self):
-
         print 'PROFILE ='
         pprint.pprint(self.profile, indent=4)
 
@@ -396,6 +409,12 @@ class Client:
         for k,v in self.item.iteritems():
             print "*%3d (%s) = %d" % (k, ItemId.Name(k), v)
             cnt_item += v
+
+        for _,v in self.incubator.iteritems():
+            if 'pokemon_id' in v:
+                current_km = round(self.profile['km_walked'] - v['start_km_walked'],3)
+                target_km = round(v['target_km_walked'] - v['start_km_walked'],3)
+                print 'INCUBATOR: {}/{}'.format(current_km, target_km)
 
         print "ITEM # =\n   ", cnt_item
         print 'POKEMON # =\n   ', cnt_pokemon
@@ -426,6 +445,8 @@ class Client:
             since_timestamp_ms=timestamps,
             cell_id=cell_ids)
         self._call()
+
+        self.use_item_egg_incubator()
 
     @chain_api
     def catch_pokemon(self, pokemon):
@@ -494,19 +515,24 @@ class Client:
                 spin_modifier=1,
                 normalized_hit_position=1)
 
-    # @chain_api
-    # def use_item_egg_incubator(self):
-    #     if self.item[ItemId.Value('ITEM_POKE_BALL')] > 0:
-    #         item_id = ItemId.Value('ITEM_POKE_BALL')
+    @chain_api
+    def use_item_egg_incubator(self):
+        for _,incubator in self.incubator.iteritems():
+            if not 'pokemon_id' in incubator:
+                for egg in self.egg:
+                    if not 'egg_incubator_id' in egg:
+                        self._use_item_egg_incubator(incubator['id'], egg['id'])
+                        self._call()
+                        break
 
-    #     if self.item[ItemId.Value('ITEM_INCUBATOR_BASIC_UNLIMITED')] > 0:
-    #         item_id = ItemId.Value('ITEM_INCUBATOR_BASIC_UNLIMITED')
+        if self.item[ItemId.Value('ITEM_POKE_BALL')] > 0:
+            item_id = ItemId.Value('ITEM_POKE_BALL')
 
-    # def _use_item_egg_incubator(self, item_id, pokemon_id):
+        if self.item[ItemId.Value('ITEM_INCUBATOR_BASIC_UNLIMITED')] > 0:
+            item_id = ItemId.Value('ITEM_INCUBATOR_BASIC_UNLIMITED')
 
-    #     self._api.use_item_egg_incubator(
-    #         item_id=
-    #         pokemon_id=)
+    def _use_item_egg_incubator(self, item_id, pokemon_id):
+        self._api.use_item_egg_incubator(item_id=item_id, pokemon_id=pokemon_id)
 
     # Spin the pokestop
     @chain_api
@@ -537,6 +563,7 @@ class Client:
 
     def _get_inventory(self):
         self.egg = []
+        self.incubator = {}
         self.pokemon = defaultdict(list)
         self.candy = defaultdict(int)
         self.item = defaultdict(int)
