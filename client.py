@@ -246,10 +246,10 @@ class Client:
                     self.candy[family_id] = candy
 
                 # Incubators
-                egg_incubators = inventory_item['inventory_item_data']['egg_incubators']['egg_incubator']
-                if egg_incubators:
-                    for egg_incubator in egg_incubators:
-                        self.incubator[egg_incubator['id']] = egg_incubator
+                # egg_incubators = inventory_item['inventory_item_data']['egg_incubators']['egg_incubator']
+                # if egg_incubators:
+                #     for egg_incubator in egg_incubators:
+                #         self.incubator[egg_incubator['id']] = egg_incubator
 
         # GET_PLAYER
         if responses['GET_PLAYER']['success'] is True:
@@ -264,13 +264,13 @@ class Client:
                 log.warning('ENCOUNTER = {}')
 
             if responses['ENCOUNTER']['status'] == 1:
-                log.info('ENCOUNTER CP = {} PROB = {}'.format(
-                    responses['ENCOUNTER']['wild_pokemon']['pokemon_data']['cp'],
-                    responses['ENCOUNTER']['capture_probability']['capture_probability']))
+                max_cp = self._max_cp(responses['ENCOUNTER']['wild_pokemon']['pokemon_data'])
+                log.info('ENCOUNTER MAX_CP = {} PROB = {}'.format(
+                    max_cp, responses['ENCOUNTER']['capture_probability']['capture_probability']))
                 # Bool, CP, ID
                 return (
                     True,
-                    responses['ENCOUNTER']['wild_pokemon']['pokemon_data']['cp'],
+                    max_cp,
                     responses['ENCOUNTER']['wild_pokemon']['pokemon_data']['pokemon_id'])
             else:
                 if responses['ENCOUNTER']['status'] == EncounterResponse.Status.Value('POKEMON_INVENTORY_FULL'):
@@ -486,12 +486,12 @@ class Client:
         ret = self._call()
         if ret[0]:
 
-            cp = ret[1]
+            max_cp = ret[1]
             pokemon_id = ret[2]
 
             ret = -1
             while ret == -1 or ret == 2 or ret == 4:
-                if len(self.pokemon[pokemon_id]) == 0 or (pokemon_id in evolvable and cp > 500) or ((pokemon_id not in evolvable) and cp > 1000):
+                if len(self.pokemon[pokemon_id]) == 0 or max_cp > 2000:
                     self.use_item_capture(pokemon)
                     if self.item[ItemId.Value('ITEM_ULTRA_BALL')] > 0:
                         pokeball = ItemId.Value('ITEM_ULTRA_BALL')
@@ -540,10 +540,10 @@ class Client:
         self._api.catch_pokemon(
                 encounter_id=pokemon['encounter_id'],
                 pokeball=pokeball,
-                normalized_reticle_size=1.36,
+                normalized_reticle_size=1.95,
                 spawn_point_guid=pokemon['spawnpoint_id'],
                 hit_pokemon=1,
-                # spin_modifier=1,
+                spin_modifier=1,
                 normalized_hit_position=1)
 
     @chain_api
