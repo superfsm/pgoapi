@@ -27,7 +27,7 @@ import json
 import logging
 import pprint
 import time
-import random
+import math
 import csv
 from collections import defaultdict
 
@@ -126,9 +126,13 @@ class Client:
         delta_lng = (lng - self._lng) / steps
 
         log.info('Moving ... %d steps' % steps)
+        prev_time = time.time()
         for step in range(steps):
             self.jump_to(self._lat + delta_lat, self._lng + delta_lng)
             time.sleep(1)
+            if time.time() - prev_time > 30:
+                self.scan()
+                prev_time = time.time()
 
     # Jump to position
     @chain_api
@@ -191,6 +195,7 @@ class Client:
                 log.info('FORT_SEARCH {}, EXP = {}'.format(
                     FortSearchResponse.Result.Name(result), experience_awarded))
                 if result == FortSearchResponse.Result.Value('INVENTORY_FULL'):
+                    self.summary()
                     self.bulk_recycle_inventory_item()
             else:
                 log.warning('FORT_SEARCH result = {}'.format(result))
@@ -351,14 +356,10 @@ class Client:
                 ItemId.Value('ITEM_POKE_BALL'),
                 cnt_great_ball + cnt_ultra_ball + cnt_poke_ball - 100)
 
-        self.summary()
-
     @chain_api
     def recycle_inventory_item(self, item_id, count):
         self._api.recycle_inventory_item(item_id=item_id,count=count)
         self._call()
-
-        self.summary()
 
     def _max_cp(self,pokemon):
         pokemon_id = pokemon['pokemon_id']
@@ -386,6 +387,7 @@ class Client:
 
         ranking = sorted(ranking, key=lambda p: p['max_cp'])
         ranking = [(p['pokemon_id'],p['id'],p['max_cp']) for p in ranking]
+        print [(PokemonId.Name(p['pokemon_id']), p['pokemon_id']) for p in ranking]
         #ranking max_cp low->high
 
         removed = 0

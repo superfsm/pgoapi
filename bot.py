@@ -95,6 +95,7 @@ class TSP(object):
 
             index = routing.Start(0)
             ret = []
+            sys.stdout.write('TSP: ')
             while not routing.IsEnd(index):
                 ret.append(self.lst[routing.IndexToNode(index)])
                 next_index = assignment.Value(routing.NextVar(index))
@@ -199,32 +200,24 @@ def main():
     if config.test:
         return
 
-    # instantiate client:
-    client = Client()
-
-    # login
-    if not client.login(str(config.auth_service), str(config.username), str(config.password)):
-        return
-
-    # set initial location
-    client.jump_to(*position)
-
-    ################################################
-
-    ################################################ Test code
-
-
-    client.scan().summary().status()
-    sorted_pokestops = TSP(client.get_pokestop()).solve()
-    show_map(sorted_pokestops, [])
+    ################################################ Actual
 
     while True:
-        time.sleep(5)
+        client = Client()
+        if not client.login(str(config.auth_service), str(config.username), str(config.password)):
+            print 'Login failed, retry after 30s'
+            time.sleep(30)
+            continue    
+        client.jump_to(*position)
+        client.scan().summary().status()
         sorted_pokestops = TSP(client.get_pokestop()).solve()
+        # show_map(sorted_pokestops, [])
         for pokestop in sorted_pokestops:
             for wild_pokemon in client.get_wild_pokemon():
                 client.move_to_obj(wild_pokemon).catch_pokemon(wild_pokemon).scan().status()
             client.move_to_obj(pokestop).fort_search(pokestop).scan().status()
+        print 'Loop finished, sleeping 30s'
+        time.sleep(30)
 
 
 if __name__ == '__main__':
