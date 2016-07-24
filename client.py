@@ -328,11 +328,12 @@ class Client:
 
     @chain_api
     def bulk_recycle_inventory_item(self):
-        for item_id, count in self.item.iteritems():
 
-            cnt_poke_ball = 0
-            cnt_great_ball = 0
-            cnt_ultra_ball = 0
+        cnt_poke_ball = 0
+        cnt_great_ball = 0
+        cnt_ultra_ball = 0
+
+        for item_id, count in self.item.iteritems():
 
             if item_id == ItemId.Value('ITEM_POTION'):
                 self.recycle_inventory_item(item_id, count)
