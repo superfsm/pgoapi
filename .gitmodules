@@ -1,0 +1,3 @@
+[submodule "DbConnector"]
+	path = POGOProtos
+	url = https://github.com/AeonLucid/POGOProtos
