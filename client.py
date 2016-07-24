@@ -27,13 +27,13 @@ import json
 import logging
 import pprint
 import time
-import rand
+import random
+import csv
 from collections import defaultdict
 
 from pgoapi import PGoApi
 from pgoapi.utilities import f2i
 
-from Evolvable import evolvable
 from pgoapi.protos.POGOProtos.Inventory_pb2 import ItemId
 from pgoapi.protos.POGOProtos.Enums_pb2 import PokemonId
 from pgoapi.protos.POGOProtos.Networking.Responses_pb2 import (
@@ -60,9 +60,19 @@ class MyDict(dict):
             val = MyDict(val)
         return val
 
-# with open('pokedex.json', 'r') as f:
-#     pokedex = json.load(f)
-
+with open("GAME_MASTER_POKEMON.tsv") as tsv:
+    lines = [line for line in csv.reader(tsv, delimiter="\t")]
+    POKEDEX = {}
+    for idx in range(1,POKEMON_ID_MAX+1):
+        POKE = {}
+        for idx_k in range(len(lines[0])):
+            try:
+                POKE[lines[0][idx_k]] = int(lines[idx][idx_k])
+            except ValueError:
+                POKE[lines[0][idx_k]] = lines[idx][idx_k]
+        POKEDEX[idx] = POKE
+        POKEDEX[POKE['Identifier']] = POKE
+    POKEDEX[133]['EvolvesTo'] = 'Vaporeon'
 
 def chain_api(func):
     def wrapper(self, *args, **kwargs):
@@ -146,15 +156,6 @@ class Client:
         b = (obj['lat'], obj['lng'])
         return great_circle(a, b).meters
 
-    # Sort the items on map by distance
-    def sort_map(self):
-        for i in self.pokestop:
-            i['dist'] = self._dist_to_obj(i)
-        self.pokestop = sorted(self.pokestop, key=lambda k: k['dist'])
-        for i in self.pokewild:
-            i['dist'] = self._dist_to_obj(i)
-        self.pokewild = sorted(self.pokewild, key=lambda k: k['dist'])
-
     # Send request and parse response
     def _call(self):
 
@@ -227,12 +228,15 @@ class Client:
                 # Pokemon
                 pokemon = inventory_item['inventory_item_data']['pokemon_data']
                 if pokemon['cp']:
+                    pokemon['max_cp'] = self._max_cp(pokemon)
                     self.pokemon[pokemon['pokemon_id']].append(pokemon)
+
                 elif pokemon['is_egg'] is True:
                     self.egg.append(pokemon)
 
+                # sort by max_cp
                 for idx in range(1, POKEMON_ID_MAX + 1):
-                    self.pokemon[idx].sort(reverse=True, key=lambda p: p['cp'])
+                    self.pokemon[idx].sort(reverse=True, key=lambda p: p['max_cp'])
 
                 # Candy
                 pokemon_family = inventory_item['inventory_item_data']['pokemon_family']
@@ -350,20 +354,47 @@ class Client:
 
         self.summary()
 
+    def _max_cp(self,pokemon):
+        pokemon_id = pokemon['pokemon_id']
+        while POKEDEX[pokemon_id]['EvolvesTo']:
+            pokemon_id = POKEDEX[POKEDEX[pokemon_id]['EvolvesTo']]['PkMn']
+
+        attack = POKEDEX[pokemon_id]['BaseAttack']
+        defense = POKEDEX[pokemon_id]['BaseDefense']
+        stamina = POKEDEX[pokemon_id]['BaseStamina']
+        if pokemon['individual_attack']:
+            attack += pokemon['individual_attack']
+        if pokemon['individual_defense']:
+            defense += pokemon['individual_defense']
+        if pokemon['individual_stamina']:
+            stamina += pokemon['individual_stamina']
+        max_cp = (attack * (defense**0.5) * (stamina**0.5) * (0.79030001**2)) / 10
+        return max_cp
+
     @chain_api
     def bulk_release_pokemon(self):
-        for idx in range(1, POKEMON_ID_MAX + 1):
-            if idx not in evolvable and len(self.pokemon[idx]) >= 2:
-                for pokemon in self.pokemon[idx][1:]:
-                    if pokemon['cp'] < 1000:
-                        log.info('RELEASING #%3d CP=%d' % (idx, pokemon['cp']))
-                        self.release_pokemon(pokemon['id'])
 
-            if idx in evolvable and len(self.pokemon[idx]) > 2:
-                for pokemon in self.pokemon[idx][2:]:
-                    if pokemon['cp'] < 450:
-                        log.info('RELEASING #%3d CP=%d' % (idx, pokemon['cp']))
-                        self.release_pokemon(pokemon['id'])
+        ranking = []
+        for idx in range(1, POKEMON_ID_MAX + 1):
+            ranking += self.pokemon[idx]
+
+        ranking = sorted(ranking, key=lambda p: p['max_cp'])
+        ranking = [(p['pokemon_id'],p['id'],p['max_cp']) for p in ranking]
+        #ranking max_cp low->high
+
+        removed = 0
+        idx = 0
+        while removed <= 50:
+            pokemon_id = ranking[idx][0]
+            _id = ranking[idx][1]
+            max_cp = ranking[idx][2]
+            idx += 1
+            if len(self.pokemon[pokemon_id]) <= 1 or self.pokemon[pokemon_id][0]['id'] == _id:
+                continue
+            else:
+                print idx,'RELEASE_POKEMON max_cp =',max_cp
+                removed += 1
+                self.release_pokemon(_id)
 
     @chain_api
     def release_pokemon(self, pokemon_id):
@@ -396,13 +427,13 @@ class Client:
         cnt_pokemon = 0
         for idx in range(1, POKEMON_ID_MAX + 1):
 
-            if idx not in evolvable:
+            if not POKEDEX[idx]['EvolvesTo']:
                 candy = '-'
             else:
                 candy = ''
 
             print '%03d (%15s)[%1s]: %3d =' % (
-                idx, PokemonId.Name(idx), candy, self.candy[idx]), [p['cp'] for p in self.pokemon[idx]]
+                idx, PokemonId.Name(idx), candy, self.candy[idx]), [(p['cp'],int(round(p['max_cp']))) for p in self.pokemon[idx]]
             cnt_pokemon += len(self.pokemon[idx])
 
         cnt_item = 0
@@ -509,10 +540,10 @@ class Client:
         self._api.catch_pokemon(
                 encounter_id=pokemon['encounter_id'],
                 pokeball=pokeball,
-                normalized_reticle_size=1.95
+                normalized_reticle_size=1.36,
                 spawn_point_guid=pokemon['spawnpoint_id'],
                 hit_pokemon=1,
-                spin_modifier=1,
+                # spin_modifier=1,
                 normalized_hit_position=1)
 
     @chain_api
