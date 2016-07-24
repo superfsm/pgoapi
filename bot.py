@@ -215,11 +215,12 @@ def main():
 
 
     client.scan().summary().status()
+    sorted_pokestops = TSP(client.get_pokestop()).solve()
+    show_map(sorted_pokestops, [])
 
     while True:
         time.sleep(5)
         sorted_pokestops = TSP(client.get_pokestop()).solve()
-        show_map(sorted_pokestops, [])
         for pokestop in sorted_pokestops:
             for wild_pokemon in client.get_wild_pokemon():
                 client.move_to_obj(wild_pokemon).catch_pokemon(wild_pokemon).scan().status()
