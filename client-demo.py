@@ -224,14 +224,13 @@ def main():
 
     client.scan().summary().status()
 
-    # while True:
-
-        # sorted_pokestops = TSP(client.get_pokestop()).solve()
-        # show_map(sorted_pokestops, [])
-        # for pokestop in sorted_pokestops:
-        #     for wild_pokemon in client.get_wild_pokemon():
-        #         client.move_to_obj(wild_pokemon).catch_pokemon(wild_pokemon).scan().status()
-        #     client.move_to_obj(pokestop).fort_search(pokestop).scan().status()
+    while True:
+        sorted_pokestops = TSP(client.get_pokestop()).solve()
+        show_map(sorted_pokestops, [])
+        for pokestop in sorted_pokestops:
+            for wild_pokemon in client.get_wild_pokemon():
+                client.move_to_obj(wild_pokemon).catch_pokemon(wild_pokemon).scan().status()
+            client.move_to_obj(pokestop).fort_search(pokestop).scan().status()
 
 
 if __name__ == '__main__':
