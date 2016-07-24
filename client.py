@@ -32,7 +32,6 @@ import csv
 from collections import defaultdict
 
 from pgoapi import PGoApi
-from pgoapi.utilities import f2i
 
 from pgoapi.protos.POGOProtos.Inventory_pb2 import ItemId
 from pgoapi.protos.POGOProtos.Enums_pb2 import PokemonId
@@ -90,10 +89,6 @@ class Client:
         self._lng = 0
         self._alt = 0
 
-        self._lat_f2i = 0
-        self._lng_f2i = 0
-        self._alt_f2i = 0
-
         self.profile = {}
         self.incubator = {}
         self.item = defaultdict(int)
@@ -145,10 +140,6 @@ class Client:
         self._lat = lat
         self._lng = lng
         # self._alt = alt
-
-        self._lat_f2i = f2i(lat)
-        self._lng_f2i = f2i(lng)
-        # self._alt_f2i = f2i(alt)
 
     # Distance to an object
     def _dist_to_obj(self, obj):
@@ -246,10 +237,10 @@ class Client:
                     self.candy[family_id] = candy
 
                 # Incubators
-                # egg_incubators = inventory_item['inventory_item_data']['egg_incubators']['egg_incubator']
-                # if egg_incubators:
-                #     for egg_incubator in egg_incubators:
-                #         self.incubator[egg_incubator['id']] = egg_incubator
+                egg_incubators = inventory_item['inventory_item_data']['egg_incubators']['egg_incubator']
+                if egg_incubators:
+                    for egg_incubator in egg_incubators:
+                        self.incubator[egg_incubator['id']] = egg_incubator
 
         # GET_PLAYER
         if responses['GET_PLAYER']['success'] is True:
@@ -486,8 +477,8 @@ class Client:
         self._get_player()
         self._get_hatched_eggs()
         self._api.get_map_objects(
-            latitude=self._lat_f2i,
-            longitude=self._lng_f2i,
+            latitude=self._lat,
+            longitude=self._lng,
             since_timestamp_ms=timestamps,
             cell_id=cell_ids)
         self._call()
@@ -521,9 +512,9 @@ class Client:
                     if self.item[ItemId.Value('ITEM_RAZZ_BERRY')] > 30:
                         self.use_item_capture(pokemon)
 
-                        cnt_poke_ball = self.item[ItemId.Value('ITEM_POKE_BALL')]
-                        cnt_great_ball = self.item[ItemId.Value('ITEM_GREAT_BALL')]
-                        cnt_ultra_ball = self.item[ItemId.Value('ITEM_ULTRA_BALL')]
+                    cnt_poke_ball = self.item[ItemId.Value('ITEM_POKE_BALL')]
+                    cnt_great_ball = self.item[ItemId.Value('ITEM_GREAT_BALL')]
+                    cnt_ultra_ball = self.item[ItemId.Value('ITEM_ULTRA_BALL')]
 
                     if cnt_ultra_ball > 100:
                         pokeball = ItemId.Value('ITEM_ULTRA_BALL')
@@ -548,26 +539,27 @@ class Client:
             self._api.use_item_capture(
                 item_id=ItemId.Value('ITEM_RAZZ_BERRY'),
                 encounter_id=pokemon['encounter_id'],
-                spawn_point_guid=pokemon['spawnpoint_id'])
+                spawn_point_guid=pokemon['spawn_point_id'])
             if not self._call():
                 self.use_item_capture(pokemon)
         else:
             log.info('USE_ITEM_CAPTURE, out of berry :(')
 
     def _encounter(self, pokemon):
+        print pokemon
         self._api.encounter(
             encounter_id=pokemon['encounter_id'],
-            spawnpoint_id=pokemon['spawnpoint_id'],
-            player_latitude=self._lat_f2i,
-            player_longitude=self._lng_f2i)
+            spawn_point_id=pokemon['spawn_point_id'],
+            player_latitude=self._lat,
+            player_longitude=self._lng)
 
     def _catch_pokemon(self, pokeball, pokemon):
         self._api.catch_pokemon(
                 encounter_id=pokemon['encounter_id'],
                 pokeball=pokeball,
-                normalized_reticle_size=1.95,
-                spawn_point_guid=pokemon['spawnpoint_id'],
-                hit_pokemon=1,
+                normalized_reticle_size=1.950,
+                spawn_point_id=pokemon['spawn_point_id'],
+                hit_pokemon=True,
                 spin_modifier=1,
                 normalized_hit_position=1)
 
@@ -597,8 +589,8 @@ class Client:
             fort_id=pokestop['id'],
             fort_latitude=pokestop['latitude'],
             fort_longitude=pokestop['longitude'],
-            player_latitude=self._lat_f2i,
-            player_longitude=self._lng_f2i)
+            player_latitude=self._lat,
+            player_longitude=self._lng)
         self._call()
 
     # Login

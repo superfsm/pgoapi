@@ -34,7 +34,7 @@ from importlib import import_module
 
 from pgoapi.protobuf_to_dict import protobuf_to_dict
 from pgoapi.exceptions import NotLoggedInException, ServerBusyOrOfflineException
-from pgoapi.utilities import f2i, h2f, to_camel_case
+from pgoapi.utilities import to_camel_case
 
 from . import protos
 from POGOProtos.Networking.Envelopes_pb2 import RequestEnvelope

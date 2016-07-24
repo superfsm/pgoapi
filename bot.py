@@ -23,30 +23,19 @@ OR OTHER DEALINGS IN THE SOFTWARE.
 """
 
 import os
-import re
 import json
-import struct
 import logging
-import requests
 import argparse
 import getpass
 import time
 import webbrowser
-import pprint
-import random
 import sys
 
 from client import Client
 
-from pgoapi import PGoApi
-from pgoapi.utilities import f2i, h2f
-
-from google.protobuf.internal import encoder
 from geopy.geocoders import GoogleV3
-from s2sphere import CellId, LatLng
 from ortools.constraint_solver import pywrapcp
 # You need to import routing_enums_pb2 after pywrapcp!
-from ortools.constraint_solver import routing_enums_pb2
 from geopy.distance import great_circle
 
 log = logging.getLogger(__name__)
@@ -66,6 +55,7 @@ consoleHandler.setLevel(logging.INFO)
 logging.getLogger(__name__).addHandler(consoleHandler)
 logging.getLogger('client').addHandler(consoleHandler)
 
+
 class TSP(object):
     """Create callback to calculate distances between points."""
     def __init__(self, lst):
@@ -80,9 +70,9 @@ class TSP(object):
                 if from_node == to_node:
                     self.matrix[from_node][to_node] = 0
                 else:
-                    a = (lst[from_node]['latitude'],lst[from_node]['longitude'])
-                    b = (lst[to_node]['latitude'],lst[to_node]['longitude'])
-                    self.matrix[from_node][to_node] = great_circle(a,b).meters
+                    a = (lst[from_node]['latitude'], lst[from_node]['longitude'])
+                    b = (lst[to_node]['latitude'], lst[to_node]['longitude'])
+                    self.matrix[from_node][to_node] = great_circle(a, b).meters
 
     def distance(self, from_node, to_node):
         return self.matrix[from_node][to_node]
@@ -101,7 +91,7 @@ class TSP(object):
 
             # Only one route here; otherwise iterate from 0 to routing.vehicles() - 1
             route_number = 0
-            index = routing.Start(route_number) # Index of the variable for the starting node.
+            index = routing.Start(route_number)  # Index of the variable for the starting node.
 
             index = routing.Start(0)
             ret = []
@@ -120,6 +110,7 @@ class TSP(object):
         else:
             print 'TSP: no solution.'
 
+
 def get_pos_by_name(location_name):
     geolocator = GoogleV3()
     while True:
@@ -135,12 +126,13 @@ def get_pos_by_name(location_name):
 
     return (loc.latitude, loc.longitude)
 
+
 def init_config():
     parser = argparse.ArgumentParser()
     config_file = "config.json"
 
     # If config file exists, load variables from json
-    load   = {}
+    load = {}
     if os.path.isfile(config_file):
         with open(config_file) as data:
             load.update(json.load(data))
