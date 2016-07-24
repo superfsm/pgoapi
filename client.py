@@ -355,13 +355,13 @@ class Client:
         for idx in range(1, POKEMON_ID_MAX + 1):
             if idx not in evolvable and len(self.pokemon[idx]) >= 2:
                 for pokemon in self.pokemon[idx][1:]:
-                    if pokemon['cp'] < 1100:
+                    if pokemon['cp'] < 1000:
                         log.info('RELEASING #%3d CP=%d' % (idx, pokemon['cp']))
                         self.release_pokemon(pokemon['id'])
 
             if idx in evolvable and len(self.pokemon[idx]) > 2:
                 for pokemon in self.pokemon[idx][2:]:
-                    if pokemon['cp'] < 500:
+                    if pokemon['cp'] < 450:
                         log.info('RELEASING #%3d CP=%d' % (idx, pokemon['cp']))
                         self.release_pokemon(pokemon['id'])
 
@@ -509,7 +509,7 @@ class Client:
         self._api.catch_pokemon(
                 encounter_id=pokemon['encounter_id'],
                 pokeball=pokeball,
-                normalized_reticle_size=1.950,
+                normalized_reticle_size=1.01,
                 spawn_point_guid=pokemon['spawnpoint_id'],
                 hit_pokemon=1,
                 spin_modifier=1,
