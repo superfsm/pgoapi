@@ -25,9 +25,9 @@ OR OTHER DEALINGS IN THE SOFTWARE.
 
 import json
 import logging
-
 import pprint
 import time
+import rand
 from collections import defaultdict
 
 from pgoapi import PGoApi
@@ -460,7 +460,7 @@ class Client:
 
             ret = -1
             while ret == -1 or ret == 2 or ret == 4:
-                if (pokemon_id in evolvable and cp > 500) or ((pokemon_id not in evolvable) and cp > 1000):
+                if len(self.pokemon[pokemon_id]) == 0 or (pokemon_id in evolvable and cp > 500) or ((pokemon_id not in evolvable) and cp > 1000):
                     self.use_item_capture(pokemon)
                     if self.item[ItemId.Value('ITEM_ULTRA_BALL')] > 0:
                         pokeball = ItemId.Value('ITEM_ULTRA_BALL')
@@ -509,7 +509,7 @@ class Client:
         self._api.catch_pokemon(
                 encounter_id=pokemon['encounter_id'],
                 pokeball=pokeball,
-                normalized_reticle_size=1.01,
+                normalized_reticle_size=1.95
                 spawn_point_guid=pokemon['spawnpoint_id'],
                 hit_pokemon=1,
                 spin_modifier=1,
