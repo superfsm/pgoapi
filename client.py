@@ -330,6 +330,10 @@ class Client:
     def bulk_recycle_inventory_item(self):
         for item_id, count in self.item.iteritems():
 
+            cnt_poke_ball = 0
+            cnt_great_ball = 0
+            cnt_ultra_ball = 0
+
             if item_id == ItemId.Value('ITEM_POTION'):
                 self.recycle_inventory_item(item_id, count)
             if item_id == ItemId.Value('ITEM_SUPER_POTION'):
@@ -340,10 +344,18 @@ class Client:
                 self.recycle_inventory_item(item_id, count - 30)
             if item_id == ItemId.Value('ITEM_RAZZ_BERRY') and count > 30:
                 self.recycle_inventory_item(item_id, count - 30)
-            if item_id == ItemId.Value('ITEM_POKE_BALL') and count > 50:
-                self.recycle_inventory_item(item_id, count - 50)
-            if item_id == ItemId.Value('ITEM_GREAT_BALL') and count > 50:
-                self.recycle_inventory_item(item_id, count - 50)
+            if item_id == ItemId.Value('ITEM_POKE_BALL'):
+                cnt_poke_ball = count
+            if item_id == ItemId.Value('ITEM_GREAT_BALL'):
+                cnt_great_ball = count
+            if item_id == ItemId.Value('ITEM_ULTRA_BALL'):
+                cnt_great_ball = count
+        if cnt_great_ball + cnt_ultra_ball > 100:
+            self.recycle_inventory_item(ItemId.Value('ITEM_POKE_BALL'), cnt_poke_ball)
+        elif cnt_great_ball + cnt_ultra_ball + cnt_poke_ball> 100:
+            self.recycle_inventory_item(
+                ItemId.Value('ITEM_POKE_BALL'),
+                cnt_great_ball + cnt_ultra_ball + cnt_poke_ball - 100)
 
         self.summary()
 
