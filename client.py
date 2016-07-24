@@ -350,8 +350,10 @@ class Client:
                 cnt_great_ball = count
             if item_id == ItemId.Value('ITEM_ULTRA_BALL'):
                 cnt_great_ball = count
+
         if cnt_great_ball + cnt_ultra_ball > 100:
             self.recycle_inventory_item(ItemId.Value('ITEM_POKE_BALL'), cnt_poke_ball)
+            self.recycle_inventory_item(ItemId.Value('ITEM_GREAT_BALL'), cnt_great_ball-100)
         elif cnt_great_ball + cnt_ultra_ball + cnt_poke_ball> 100:
             self.recycle_inventory_item(
                 ItemId.Value('ITEM_POKE_BALL'),
