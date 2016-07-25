@@ -59,7 +59,7 @@ class MyDict(dict):
             val = MyDict(val)
         return val
 
-with open("GAME_MASTER_POKEMON.tsv") as tsv:
+with open("data/GAME_MASTER_POKEMON.tsv") as tsv:
     lines = [line for line in csv.reader(tsv, delimiter="\t")]
     POKEDEX = {}
     for idx in range(1,POKEMON_ID_MAX+1):
