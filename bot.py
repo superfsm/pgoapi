@@ -46,8 +46,8 @@ logFormatter = logging.Formatter('%(asctime)s [%(module)10s] [%(levelname)5s] %(
 
 fileHandler = logging.FileHandler('log.log')
 fileHandler.setFormatter(logFormatter)
-# fileHandler.setLevel(logging.DEBUG)
-rootLogger.addHandler(fileHandler)
+fileHandler.setLevel(logging.DEBUG)
+# rootLogger.addHandler(fileHandler)
 
 consoleHandler = logging.StreamHandler()
 consoleHandler.setFormatter(logFormatter)
