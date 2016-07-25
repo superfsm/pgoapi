@@ -230,10 +230,6 @@ class Client:
                 elif pokemon['is_egg'] is True:
                     self.egg.append(pokemon)
 
-                # sort by max_cp
-                for idx in range(1, POKEMON_ID_MAX + 1):
-                    self.pokemon[idx].sort(reverse=True, key=lambda p: p['max_cp'])
-
                 # Candy
                 pokemon_family = inventory_item['inventory_item_data']['pokemon_family']
                 candy = pokemon_family['candy']
@@ -246,6 +242,12 @@ class Client:
                 if egg_incubators:
                     for egg_incubator in egg_incubators:
                         self.incubator[egg_incubator['id']] = egg_incubator
+
+            # Sort pokemon by max_cp
+            for idx in range(1, POKEMON_ID_MAX + 1):
+                self.pokemon[idx].sort(reverse=True, key=lambda p: p['max_cp'])
+            # Sort egg by km
+            self.egg.sort(reverse=True, key=lambda e: e['egg_km_walked_target'])
 
         # GET_PLAYER
         if responses['GET_PLAYER']['success'] is True:
@@ -325,39 +327,63 @@ class Client:
     @chain_api
     def bulk_recycle_inventory_item(self):
 
-        cnt_poke_ball = 0
-        cnt_great_ball = 0
-        cnt_ultra_ball = 0
+        BALL_MAX = 100
+        POTION_MAX = 100
+        REVIVE_MAX = 50
+        BERRY_MAX = 50
 
-        for item_id, count in self.item.iteritems():
+        cnt_poke_ball = self.item[ItemId.Value('ITEM_POKE_BALL')]
+        cnt_great_ball = self.item[ItemId.Value('ITEM_GREAT_BALL')]
+        cnt_ultra_ball = self.item[ItemId.Value('ITEM_ULTRA_BALL')]
+        cnt_master_ball = self.item[ItemId.Value('ITEM_MASTER_BALL')]
 
-            if item_id == ItemId.Value('ITEM_POTION'):
-                self.recycle_inventory_item(item_id, count)
-            if item_id == ItemId.Value('ITEM_SUPER_POTION'):
-                self.recycle_inventory_item(item_id, count)
-            if item_id == ItemId.Value('ITEM_HYPER_POTION') and count > 50:
-                self.recycle_inventory_item(item_id, count - 50)
-            if item_id == ItemId.Value('ITEM_REVIVE') and count > 30:
-                self.recycle_inventory_item(item_id, count - 30)
-            if item_id == ItemId.Value('ITEM_RAZZ_BERRY') and count > 30:
-                self.recycle_inventory_item(item_id, count - 30)
-            if item_id == ItemId.Value('ITEM_POKE_BALL'):
-                cnt_poke_ball = count
-            if item_id == ItemId.Value('ITEM_GREAT_BALL'):
-                cnt_great_ball = count
-            if item_id == ItemId.Value('ITEM_ULTRA_BALL'):
-                cnt_ultra_ball = count
+        cnt_potion = self.item[ItemId.Value('ITEM_POTION')]
+        cnt_super_potion = self.item[ItemId.Value('ITEM_SUPER_POTION')]
+        cnt_hyper_potion = self.item[ItemId.Value('ITEM_HYPER_POTION')]
+        cnt_max_potion = self.item[ItemId.Value('ITEM_MAX_POTION')]
 
-        if cnt_great_ball + cnt_ultra_ball > 100:
+        cnt_revive = self.item[ItemId.Value('ITEM_REVIVE')]
+        cnt_berry = self.item[ItemId.Value('ITEM_RAZZ_BERRY')]
+
+        if cnt_max_potion > POTION_MAX:
+            self.recycle_inventory_item(ItemId.Value('ITEM_MAX_POTION'), cnt_max_potion - POTION_MAX)
+            self.recycle_inventory_item(ItemId.Value('ITEM_HYPER_POTION'), cnt_hyper_potion)
+            self.recycle_inventory_item(ItemId.Value('ITEM_SUPER_POTION'), cnt_super_potion)
+            self.recycle_inventory_item(ItemId.Value('ITEM_POTION'), cnt_potion)
+        if cnt_max_potion + cnt_hyper_potion > POTION_MAX:
+            self.recycle_inventory_item(ItemId.Value('ITEM_HYPER_POTION'), cnt_max_potion + cnt_hyper_potion - POTION_MAX)
+            self.recycle_inventory_item(ItemId.Value('ITEM_SUPER_POTION'), cnt_super_potion)
+            self.recycle_inventory_item(ItemId.Value('ITEM_POTION'), cnt_potion)
+        if cnt_max_potion + cnt_hyper_potion + cnt_super_potion > POTION_MAX:
+            self.recycle_inventory_item(ItemId.Value('ITEM_SUPER_POTION'), cnt_max_potion + cnt_hyper_potion + cnt_super_potion - POTION_MAX)
+            self.recycle_inventory_item(ItemId.Value('ITEM_POTION'), cnt_potion)
+        if cnt_max_potion + cnt_hyper_potion + cnt_super_potion + cnt_potion > POTION_MAX:
+            self.recycle_inventory_item(ItemId.Value('ITEM_POTION'), cnt_max_potion + cnt_hyper_potion + cnt_super_potion + cnt_potion - POTION_MAX)
+
+        if cnt_master_ball > BALL_MAX:
+            self.recycle_inventory_item(ItemId.Value('ITEM_MASTER_BALL'), cnt_master_ball - BALL_MAX)
+            self.recycle_inventory_item(ItemId.Value('ITEM_ULTRA_BALL'), cnt_ultra_ball)
+            self.recycle_inventory_item(ItemId.Value('ITEM_GREAT_BALL'), cnt_great_ball)
             self.recycle_inventory_item(ItemId.Value('ITEM_POKE_BALL'), cnt_poke_ball)
-            self.recycle_inventory_item(ItemId.Value('ITEM_GREAT_BALL'), cnt_great_ball-100)
-        elif cnt_great_ball + cnt_ultra_ball + cnt_poke_ball> 100:
-            self.recycle_inventory_item(
-                ItemId.Value('ITEM_POKE_BALL'),
-                cnt_great_ball + cnt_ultra_ball + cnt_poke_ball - 100)
+        if cnt_master_ball + cnt_ultra_ball > BALL_MAX:
+            self.recycle_inventory_item(ItemId.Value('ITEM_ULTRA_BALL'), cnt_master_ball + cnt_ultra_ball - BALL_MAX)
+            self.recycle_inventory_item(ItemId.Value('ITEM_GREAT_BALL'), cnt_great_ball)
+            self.recycle_inventory_item(ItemId.Value('ITEM_POKE_BALL'), cnt_poke_ball)
+        if cnt_master_ball + cnt_ultra_ball + cnt_great_ball > BALL_MAX:
+            self.recycle_inventory_item(ItemId.Value('ITEM_GREAT_BALL'), cnt_master_ball + cnt_ultra_ball + cnt_great_ball - BALL_MAX)
+            self.recycle_inventory_item(ItemId.Value('ITEM_POKE_BALL'), cnt_poke_ball)
+        if cnt_master_ball + cnt_ultra_ball + cnt_great_ball + cnt_poke_ball > BALL_MAX:
+            self.recycle_inventory_item(ItemId.Value('ITEM_POKE_BALL'), cnt_master_ball + cnt_ultra_ball + cnt_great_ball + cnt_poke_ball - BALL_MAX)
+
+
+        if  cnt_revive > REVIVE_MAX:
+            self.recycle_inventory_item(ItemId.Value('ITEM_REVIVE'), cnt_revive - REVIVE_MAX)
+        if  cnt_berry > BERRY_MAX:
+            self.recycle_inventory_item(ItemId.Value('ITEM_RAZZ_BERRY'), cnt_berry - BERRY_MAX)
 
     @chain_api
     def recycle_inventory_item(self, item_id, count):
+        log.info('RECYCLE_INVENTORY_ITEM {} = {}'.format(ItemId.Name(item_id), count))
         self._api.recycle_inventory_item(item_id=item_id,count=count)
         self._call()
 
@@ -445,11 +471,11 @@ class Client:
             cnt_pokemon += len(self.pokemon[idx])
 
         cnt_item = 0
-        for k,v in self.item.iteritems():
+        for k, v in self.item.iteritems():
             print "*%3d (%s) = %d" % (k, ItemId.Name(k), v)
             cnt_item += v
 
-        for _,v in self.incubator.iteritems():
+        for _, v in self.incubator.iteritems():
             if 'pokemon_id' in v:
                 current_km = round(self.profile['km_walked'] - v['start_km_walked'],3)
                 target_km = round(v['target_km_walked'] - v['start_km_walked'],3)
@@ -527,11 +553,11 @@ class Client:
                         pokeball = ItemId.Value('ITEM_ULTRA_BALL')
                     elif cnt_great_ball > 0 and cnt_great_ball + cnt_ultra_ball > 100:
                         pokeball = ItemId.Value('ITEM_GREAT_BALL')
-                    elif self.item[ItemId.Value('ITEM_POKE_BALL')] > 0:
+                    elif cnt_poke_ball > 0:
                         pokeball = ItemId.Value('ITEM_POKE_BALL')
-                    elif self.item[ItemId.Value('ITEM_GREAT_BALL')] > 0:
+                    elif cnt_great_ball > 0:
                         pokeball = ItemId.Value('ITEM_GREAT_BALL')
-                    elif self.item[ItemId.Value('ITEM_ULTRA_BALL')] > 0:
+                    elif cnt_ultra_ball > 0:
                         pokeball = ItemId.Value('ITEM_ULTRA_BALL')
                     else:
                         log.warning('CATCH_POKEMON no balls!')
@@ -571,10 +597,10 @@ class Client:
 
     @chain_api
     def use_item_egg_incubator(self):
-        for _,incubator in self.incubator.iteritems():
-            if not 'pokemon_id' in incubator:
+        for _, incubator in self.incubator.iteritems():
+            if 'pokemon_id' not in incubator:
                 for egg in self.egg:
-                    if not 'egg_incubator_id' in egg:
+                    if ('egg_incubator_id' not in egg) and (egg['egg_km_walked_target'] == 10 or incubator['item_id'] == ItemId.Value('ITEM_INCUBATOR_BASIC_UNLIMITED')):
                         self._use_item_egg_incubator(incubator['id'], egg['id'])
                         self._call()
                         break
