@@ -504,7 +504,7 @@ class Client:
                 else:
                     family_id = pokemon_id
 
-                if len(self.pokemon[pokemon_id]) == 0 or self.candy[family_id] < 100 or max_cp > 2000:
+                if len(self.pokemon[pokemon_id]) == 0 or self.candy[family_id] < 50 or max_cp > 2500:
                     self.use_item_capture(pokemon)
                     if self.item[ItemId.Value('ITEM_ULTRA_BALL')] > 0:
                         pokeball = ItemId.Value('ITEM_ULTRA_BALL')
