@@ -387,7 +387,7 @@ class Client:
 
         ranking = sorted(ranking, key=lambda p: p['max_cp'])
         ranking = [(p['pokemon_id'],p['id'],p['max_cp']) for p in ranking]
-        print [(PokemonId.Name(p['pokemon_id']), p['pokemon_id']) for p in ranking]
+        print [(PokemonId.Name(p[0]), p[2]) for p in ranking]
         #ranking max_cp low->high
 
         removed = 0
@@ -499,7 +499,12 @@ class Client:
 
             ret = -1
             while ret == -1 or ret == 2 or ret == 4:
-                if len(self.pokemon[pokemon_id]) == 0 or max_cp > 2000:
+                if POKEDEX[pokemon_id]['EvolvesFrom']:
+                    family_id = POKEDEX[POKEDEX[pokemon_id]['EvolvesFrom']]['PkMn']
+                else:
+                    family_id = pokemon_id
+
+                if len(self.pokemon[pokemon_id]) == 0 or self.candy[family_id] < 100 or max_cp > 2000:
                     self.use_item_capture(pokemon)
                     if self.item[ItemId.Value('ITEM_ULTRA_BALL')] > 0:
                         pokeball = ItemId.Value('ITEM_ULTRA_BALL')
@@ -548,7 +553,6 @@ class Client:
             log.info('USE_ITEM_CAPTURE, out of berry :(')
 
     def _encounter(self, pokemon):
-        print pokemon
         self._api.encounter(
             encounter_id=pokemon['encounter_id'],
             spawn_point_id=pokemon['spawn_point_id'],
@@ -557,13 +561,13 @@ class Client:
 
     def _catch_pokemon(self, pokeball, pokemon):
         self._api.catch_pokemon(
-                encounter_id=pokemon['encounter_id'],
-                pokeball=pokeball,
-                normalized_reticle_size=1.950,
-                spawn_point_id=pokemon['spawn_point_id'],
-                hit_pokemon=True,
-                spin_modifier=1,
-                normalized_hit_position=1)
+            encounter_id=pokemon['encounter_id'],
+            pokeball=pokeball,
+            normalized_reticle_size=1.950,
+            spawn_point_id=pokemon['spawn_point_id'],
+            hit_pokemon=True,
+            spin_modifier=1,
+            normalized_hit_position=1)
 
     @chain_api
     def use_item_egg_incubator(self):
