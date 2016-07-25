@@ -327,10 +327,12 @@ class Client:
     @chain_api
     def bulk_recycle_inventory_item(self):
 
-        BALL_MAX = 100
-        POTION_MAX = 100
-        REVIVE_MAX = 50
-        BERRY_MAX = 50
+        max_item_storage = self.profile['max_item_storage'] - 50
+
+        BALL_MAX = max_item_storage / 3
+        POTION_MAX = max_item_storage / 3
+        REVIVE_MAX = max_item_storage / 3 / 2
+        BERRY_MAX = max_item_storage / 3 / 2
 
         cnt_poke_ball = self.item[ItemId.Value('ITEM_POKE_BALL')]
         cnt_great_ball = self.item[ItemId.Value('ITEM_GREAT_BALL')]
@@ -350,14 +352,14 @@ class Client:
             self.recycle_inventory_item(ItemId.Value('ITEM_HYPER_POTION'), cnt_hyper_potion)
             self.recycle_inventory_item(ItemId.Value('ITEM_SUPER_POTION'), cnt_super_potion)
             self.recycle_inventory_item(ItemId.Value('ITEM_POTION'), cnt_potion)
-        if cnt_max_potion + cnt_hyper_potion > POTION_MAX:
+        elif cnt_max_potion + cnt_hyper_potion > POTION_MAX:
             self.recycle_inventory_item(ItemId.Value('ITEM_HYPER_POTION'), cnt_max_potion + cnt_hyper_potion - POTION_MAX)
             self.recycle_inventory_item(ItemId.Value('ITEM_SUPER_POTION'), cnt_super_potion)
             self.recycle_inventory_item(ItemId.Value('ITEM_POTION'), cnt_potion)
-        if cnt_max_potion + cnt_hyper_potion + cnt_super_potion > POTION_MAX:
+        elif cnt_max_potion + cnt_hyper_potion + cnt_super_potion > POTION_MAX:
             self.recycle_inventory_item(ItemId.Value('ITEM_SUPER_POTION'), cnt_max_potion + cnt_hyper_potion + cnt_super_potion - POTION_MAX)
             self.recycle_inventory_item(ItemId.Value('ITEM_POTION'), cnt_potion)
-        if cnt_max_potion + cnt_hyper_potion + cnt_super_potion + cnt_potion > POTION_MAX:
+        elif cnt_max_potion + cnt_hyper_potion + cnt_super_potion + cnt_potion > POTION_MAX:
             self.recycle_inventory_item(ItemId.Value('ITEM_POTION'), cnt_max_potion + cnt_hyper_potion + cnt_super_potion + cnt_potion - POTION_MAX)
 
         if cnt_master_ball > BALL_MAX:
@@ -365,14 +367,14 @@ class Client:
             self.recycle_inventory_item(ItemId.Value('ITEM_ULTRA_BALL'), cnt_ultra_ball)
             self.recycle_inventory_item(ItemId.Value('ITEM_GREAT_BALL'), cnt_great_ball)
             self.recycle_inventory_item(ItemId.Value('ITEM_POKE_BALL'), cnt_poke_ball)
-        if cnt_master_ball + cnt_ultra_ball > BALL_MAX:
+        elif cnt_master_ball + cnt_ultra_ball > BALL_MAX:
             self.recycle_inventory_item(ItemId.Value('ITEM_ULTRA_BALL'), cnt_master_ball + cnt_ultra_ball - BALL_MAX)
             self.recycle_inventory_item(ItemId.Value('ITEM_GREAT_BALL'), cnt_great_ball)
             self.recycle_inventory_item(ItemId.Value('ITEM_POKE_BALL'), cnt_poke_ball)
-        if cnt_master_ball + cnt_ultra_ball + cnt_great_ball > BALL_MAX:
+        elif cnt_master_ball + cnt_ultra_ball + cnt_great_ball > BALL_MAX:
             self.recycle_inventory_item(ItemId.Value('ITEM_GREAT_BALL'), cnt_master_ball + cnt_ultra_ball + cnt_great_ball - BALL_MAX)
             self.recycle_inventory_item(ItemId.Value('ITEM_POKE_BALL'), cnt_poke_ball)
-        if cnt_master_ball + cnt_ultra_ball + cnt_great_ball + cnt_poke_ball > BALL_MAX:
+        elif cnt_master_ball + cnt_ultra_ball + cnt_great_ball + cnt_poke_ball > BALL_MAX:
             self.recycle_inventory_item(ItemId.Value('ITEM_POKE_BALL'), cnt_master_ball + cnt_ultra_ball + cnt_great_ball + cnt_poke_ball - BALL_MAX)
 
 
