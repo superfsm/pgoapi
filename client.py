@@ -179,13 +179,13 @@ class Client:
                 # log.debug('POKEMON = {}'.format(wild_pokemon))
 
         # GET_HATCHED_EGGS
-        if 'GET_HATCHED_EGGS' in responses:
-            if responses['GET_HATCHED_EGGS']['success'] is True:
-                if responses['GET_HATCHED_EGGS']['exp']:
-                    log.info('GET_HATCHED_EGGS exp = {}'.format(
-                        responses['GET_HATCHED_EGGS']['experience_awarded']))
-            else:
-                log.warning('GET_HATCHED_EGGS {}'.format(responses['GET_HATCHED_EGGS']['success']))
+        # if 'GET_HATCHED_EGGS' in responses:
+        #     if responses['GET_HATCHED_EGGS']['success'] is True:
+        #         if responses['GET_HATCHED_EGGS']['exp']:
+        #             log.info('GET_HATCHED_EGGS exp = {}'.format(
+        #                 responses['GET_HATCHED_EGGS']['experience_awarded']))
+        #     else:
+        #         log.warning('GET_HATCHED_EGGS {}'.format(responses['GET_HATCHED_EGGS']['success']))
 
         # FORT_SEARCH
         if responses['FORT_SEARCH']:
@@ -578,12 +578,6 @@ class Client:
                         self._use_item_egg_incubator(incubator['id'], egg['id'])
                         self._call()
                         break
-
-        if self.item[ItemId.Value('ITEM_POKE_BALL')] > 0:
-            item_id = ItemId.Value('ITEM_POKE_BALL')
-
-        if self.item[ItemId.Value('ITEM_INCUBATOR_BASIC_UNLIMITED')] > 0:
-            item_id = ItemId.Value('ITEM_INCUBATOR_BASIC_UNLIMITED')
 
     def _use_item_egg_incubator(self, item_id, pokemon_id):
         self._api.use_item_egg_incubator(item_id=item_id, pokemon_id=pokemon_id)
