@@ -27,8 +27,8 @@ import json
 import logging
 import pprint
 import time
-import math
 import csv
+import numpy as np
 from collections import defaultdict
 
 from pgoapi import PGoApi
@@ -59,7 +59,7 @@ class MyDict(dict):
             val = MyDict(val)
         return val
 
-with open("data/GAME_MASTER_POKEMON.tsv") as tsv:
+with open('data/GAME_MASTER_POKEMON.tsv') as tsv:
     lines = [line for line in csv.reader(tsv, delimiter="\t")]
     POKEDEX = {}
     for idx in range(1,POKEMON_ID_MAX+1):
@@ -72,6 +72,20 @@ with open("data/GAME_MASTER_POKEMON.tsv") as tsv:
         POKEDEX[idx] = POKE
         POKEDEX[POKE['Identifier']] = POKE
     POKEDEX[133]['EvolvesTo'] = 'Vaporeon'
+
+with open('data/level-to-cpm.json') as f:
+    tmp = json.load(f)
+    LEVEL_TO_CPM = {}
+    for lv, cpm in tmp.iteritems():
+        LEVEL_TO_CPM[float(lv)] = cpm
+    del tmp
+
+with open('data/level-to-dust.json') as f:
+    tmp = json.load(f)
+    LEVEL_TO_DUST = {}
+    for lv, dust in tmp.iteritems():
+        LEVEL_TO_DUST[float(lv)] = dust
+    del tmp
 
 def chain_api(func):
     def wrapper(self, *args, **kwargs):
@@ -89,7 +103,7 @@ class Client:
         self._lng = 0
         self._alt = 0
 
-        self.profile = defaultdict(int)
+        self.profile = {}
         self.incubator = {}
         self.item = defaultdict(int)
         self.pokemon = defaultdict(list)
@@ -224,7 +238,7 @@ class Client:
                 # Pokemon
                 pokemon = inventory_item['inventory_item_data']['pokemon_data']
                 if pokemon['cp']:
-                    pokemon['max_cp'], pokemon['perf_cp'] = self._max_cp(pokemon)
+                    self._calc_attr(pokemon)
                     self.pokemon[pokemon['pokemon_id']].append(pokemon)
 
                 elif pokemon['is_egg'] is True:
@@ -262,14 +276,15 @@ class Client:
                 log.warning('ENCOUNTER = {}')
 
             if responses['ENCOUNTER']['status'] == 1:
-                max_cp = self._max_cp(responses['ENCOUNTER']['wild_pokemon']['pokemon_data'])[0]
-                log.info('ENCOUNTER MAX_CP = {} PROB = {}'.format(
-                    max_cp, responses['ENCOUNTER']['capture_probability']['capture_probability']))
+                pokemon = responses['ENCOUNTER']['wild_pokemon']['pokemon_data']
+                self._calc_attr(pokemon)
+                log.info('ENCOUNTER = "{} PROB = {}'.format(
+                    PokemonId.Name(pokemon['pokemon_id']), responses['ENCOUNTER']['capture_probability']['capture_probability']))
                 # Bool, CP, ID
                 return (
                     True,
-                    max_cp,
-                    responses['ENCOUNTER']['wild_pokemon']['pokemon_data']['pokemon_id'])
+                    pokemon['max_cp'],
+                    pokemon['pokemon_id'])
             else:
                 if responses['ENCOUNTER']['status'] == EncounterResponse.Status.Value('POKEMON_INVENTORY_FULL'):
                     self.bulk_release_pokemon()
@@ -377,40 +392,61 @@ class Client:
         elif cnt_master_ball + cnt_ultra_ball + cnt_great_ball + cnt_poke_ball > BALL_MAX:
             self.recycle_inventory_item(ItemId.Value('ITEM_POKE_BALL'), cnt_master_ball + cnt_ultra_ball + cnt_great_ball + cnt_poke_ball - BALL_MAX)
 
-
-        if  cnt_revive > REVIVE_MAX:
+        if cnt_revive > REVIVE_MAX:
             self.recycle_inventory_item(ItemId.Value('ITEM_REVIVE'), cnt_revive - REVIVE_MAX)
-        if  cnt_berry > BERRY_MAX:
+        if cnt_berry > BERRY_MAX:
             self.recycle_inventory_item(ItemId.Value('ITEM_RAZZ_BERRY'), cnt_berry - BERRY_MAX)
 
     @chain_api
     def recycle_inventory_item(self, item_id, count):
         log.info('RECYCLE_INVENTORY_ITEM {} = {}'.format(ItemId.Name(item_id), count))
-        self._api.recycle_inventory_item(item_id=item_id,count=count)
+        self._api.recycle_inventory_item(item_id=item_id, count=count)
         self._call()
 
-    def _max_cp(self,pokemon):
+    def _calc_attr(self, pokemon):
         pokemon_id = pokemon['pokemon_id']
         while POKEDEX[pokemon_id]['EvolvesTo']:
             pokemon_id = POKEDEX[POKEDEX[pokemon_id]['EvolvesTo']]['PkMn']
 
-        attack = base_attack = POKEDEX[pokemon_id]['BaseAttack']
-        defense = base_defense = POKEDEX[pokemon_id]['BaseDefense']
-        stamina = base_stamina = POKEDEX[pokemon_id]['BaseStamina']
+        _ba = POKEDEX[pokemon_id]['BaseAttack']
+        _bd = POKEDEX[pokemon_id]['BaseDefense']
+        _bs = POKEDEX[pokemon_id]['BaseStamina']
+        _ia = _id = _is = 0
         if pokemon['individual_attack']:
-            attack = base_attack + pokemon['individual_attack']
+            _ia = pokemon['individual_attack']
         if pokemon['individual_defense']:
-            defense = base_defense + pokemon['individual_defense']
+            _id = pokemon['individual_defense']
         if pokemon['individual_stamina']:
-            stamina = base_stamina + pokemon['individual_stamina']
-        max_cp = (attack * (defense**0.5) * (stamina**0.5) * (0.79030001**2)) / 10
+            _is = pokemon['individual_stamina']
 
-        attack = base_attack + 15
-        defense = base_defense + 15
-        stamina = base_stamina + 15
-        perfect_cp = (attack * (defense**0.5) * (stamina**0.5) * (0.79030001**2)) / 10
+        max_cp     = (_ba+_ia) * ((_bd+_id)**0.5) * ((_bs+_is)**0.5) * (LEVEL_TO_CPM[40]**2) / 10
+        perfect_cp = (_ba+ 15) * ((_bd+ 15)**0.5) * ((_bs+ 15)**0.5) * (LEVEL_TO_CPM[40]**2) / 10
+        worst_cp   = _ba * (_bd**0.5) * (_bs**0.5) * (LEVEL_TO_CPM[40]**2) / 10
 
-        return (max_cp, perfect_cp)
+        cpm = pokemon['cp_multiplier']
+        if pokemon['additional_cp_multiplier']:
+            cpm += pokemon['additional_cp_multiplier']
+
+        pokemon['level'] = 0
+        for lv, value in LEVEL_TO_CPM.iteritems():
+            if abs(value - cpm) < 0.0001:
+                pokemon['level'] = lv
+                break
+
+        dust_needed = 0
+        candy_needed = 0
+        for lv in np.arange(pokemon['level'], 40, 0.5):
+            dust_needed += LEVEL_TO_DUST[lv][0]
+            candy_needed += LEVEL_TO_DUST[lv][1]
+
+        pokemon['max_cp'] = max_cp
+        pokemon['perfect_cp'] = perfect_cp
+        # pokemon['worst_cp'] = worst_cp
+        pokemon['pcp'] = (max_cp - worst_cp) / (perfect_cp - worst_cp)
+        pokemon['dust_needed'] = dust_needed
+        pokemon['candy_needed'] = candy_needed
+        # pokemon['piv'] = (_ia + _id + _is) / 45.0
+        return pokemon
 
     @chain_api
     def bulk_release_pokemon(self):
@@ -419,10 +455,10 @@ class Client:
         for idx in range(1, POKEMON_ID_MAX + 1):
             ranking += self.pokemon[idx]
 
-        ranking = sorted(ranking, key=lambda p: p['max_cp'])
         ranking = [(p['pokemon_id'],p['id'],p['max_cp']) for p in ranking]
-        print [(PokemonId.Name(p[0]), p[2]) for p in ranking]
-        #ranking max_cp low->high
+        ranking = sorted(ranking, key=lambda p: p[2])
+
+        self.summary_pokemon()
 
         removed = 0
         idx = 0
@@ -486,11 +522,12 @@ class Client:
             if pokemon['individual_stamina']:
                 stamina = pokemon['individual_stamina']
 
-            print '#%03d  %-15s | %4d -> %4d / %4d ( %3d %% ) |  %2d  %2d  %2d ' % (
+            print '#%03d  %-15s | Lv %4.1f [%6d, %2d] %4d -> %4d / %4d (%3d %% ) |  %2d  %2d  %2d ' % (
                 pokemon_id, PokemonId.Name(pokemon_id),
-                pokemon['cp'], pokemon['max_cp'], pokemon['perf_cp'], pokemon['max_cp']/pokemon['perf_cp']*100,
+                round(pokemon['level'],1), pokemon['dust_needed'], pokemon['candy_needed'],
+                pokemon['cp'], pokemon['max_cp'], pokemon['perfect_cp'], pokemon['pcp']*100,
                 attack, defense, stamina)
-        print ' ID      NAME         | CURR -> MAX  / THEORY     %   | ATK DEF STA'
+        print ' ID      NAME         | LEVEL   [DUST, CANDY] CURR -> MAX  / THEORY    %   | ATK DEF STA'
 
     @chain_api
     def summary(self):
