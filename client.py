@@ -104,6 +104,9 @@ class Client:
         self._alt = 0
 
         self.profile = {}
+        self.profile['level'] = 1
+
+
         self.incubator = {}
         self.item = defaultdict(int)
         self.pokemon = defaultdict(list)
@@ -177,6 +180,10 @@ class Client:
             return
 
         responses = MyDict(resp)['responses']
+
+         # GET_PLAYER
+        if responses['GET_PLAYER']['success'] is True:
+            self.profile.update(responses['GET_PLAYER']['player_data'])
 
         # GET_MAP_OBJECTS
         for map_cell in responses['GET_MAP_OBJECTS']['map_cells']:
@@ -262,10 +269,6 @@ class Client:
                 self.pokemon[idx].sort(reverse=True, key=lambda p: p['max_cp'])
             # Sort egg by km
             self.egg.sort(reverse=True, key=lambda e: e['egg_km_walked_target'])
-
-        # GET_PLAYER
-        if responses['GET_PLAYER']['success'] is True:
-            self.profile.update(responses['GET_PLAYER']['player_data'])
 
         # ENCOUNTER
         if 'ENCOUNTER' in responses:
@@ -405,24 +408,15 @@ class Client:
 
     def _calc_attr(self, pokemon):
         pokemon_id = pokemon['pokemon_id']
+
+        dust_needed = 0
+        candy_needed = 0
+
         while POKEDEX[pokemon_id]['EvolvesTo']:
+            candy_needed += POKEDEX[pokemon_id]['CandyToEvolve']
             pokemon_id = POKEDEX[POKEDEX[pokemon_id]['EvolvesTo']]['PkMn']
 
-        _ba = POKEDEX[pokemon_id]['BaseAttack']
-        _bd = POKEDEX[pokemon_id]['BaseDefense']
-        _bs = POKEDEX[pokemon_id]['BaseStamina']
-        _ia = _id = _is = 0
-        if pokemon['individual_attack']:
-            _ia = pokemon['individual_attack']
-        if pokemon['individual_defense']:
-            _id = pokemon['individual_defense']
-        if pokemon['individual_stamina']:
-            _is = pokemon['individual_stamina']
-
-        max_cp     = (_ba+_ia) * ((_bd+_id)**0.5) * ((_bs+_is)**0.5) * (LEVEL_TO_CPM[40]**2) / 10
-        perfect_cp = (_ba+ 15) * ((_bd+ 15)**0.5) * ((_bs+ 15)**0.5) * (LEVEL_TO_CPM[40]**2) / 10
-        worst_cp   = _ba * (_bd**0.5) * (_bs**0.5) * (LEVEL_TO_CPM[40]**2) / 10
-
+        # Level
         cpm = pokemon['cp_multiplier']
         if pokemon['additional_cp_multiplier']:
             cpm += pokemon['additional_cp_multiplier']
@@ -433,19 +427,47 @@ class Client:
                 pokemon['level'] = lv
                 break
 
-        dust_needed = 0
-        candy_needed = 0
-        for lv in np.arange(pokemon['level'], 40, 0.5):
-            dust_needed += LEVEL_TO_DUST[lv][0]
-            candy_needed += LEVEL_TO_DUST[lv][1]
+        # Stats
+        _ba = POKEDEX[pokemon_id]['BaseAttack']
+        _bd = POKEDEX[pokemon_id]['BaseDefense']
+        _bs = POKEDEX[pokemon_id]['BaseStamina']
+        _ia = _id = _is = 0
+        if pokemon['individual_attack']:
+            _ia = pokemon['individual_attack']
+        if pokemon['individual_defense']:
+            _id = pokemon['individual_defense']
+        if pokemon['individual_stamina']:
+            _is = pokemon['individual_stamina']
+        # pokemon['piv'] = (_ia + _id + _is) / 45.0
+
+        # CP
+        evolve_cp  = (_ba+_ia) * ((_bd+_id)**0.5) * ((_bs+_is)**0.5) * (LEVEL_TO_CPM[pokemon['level']]**2) / 10
+        max_cp     = (_ba+_ia) * ((_bd+_id)**0.5) * ((_bs+_is)**0.5) * (LEVEL_TO_CPM[40]**2) / 10
+        perfect_cp = (_ba+ 15) * ((_bd+ 15)**0.5) * ((_bs+ 15)**0.5) * (LEVEL_TO_CPM[40]**2) / 10
+        worst_cp   = _ba * (_bd**0.5) * (_bs**0.5) * (LEVEL_TO_CPM[40]**2) / 10
 
         pokemon['max_cp'] = max_cp
         pokemon['perfect_cp'] = perfect_cp
-        # pokemon['worst_cp'] = worst_cp
         pokemon['pcp'] = (max_cp - worst_cp) / (perfect_cp - worst_cp)
-        pokemon['dust_needed'] = dust_needed
-        pokemon['candy_needed'] = candy_needed
-        # pokemon['piv'] = (_ia + _id + _is) / 45.0
+        # pokemon['worst_cp'] = worst_cp
+
+        # Dust/Candy
+        ceiling_level = self.profile['level'] + 1.5
+        if ceiling_level > 40:
+            ceiling_level = 40
+        for lv in np.arange(pokemon['level'], ceiling_level, 0.5):
+            dust_needed += LEVEL_TO_DUST[lv][0]
+            candy_needed += LEVEL_TO_DUST[lv][1]
+        pokemon['dust_needed_curr'] = dust_needed
+        pokemon['candy_needed_curr'] = candy_needed
+
+        for lv in np.arange(ceiling_level, 40, 0.5):
+            dust_needed += LEVEL_TO_DUST[lv][0]
+            candy_needed += LEVEL_TO_DUST[lv][1]
+
+        pokemon['dust_needed_max'] = dust_needed
+        pokemon['candy_needed_max'] = candy_needed
+
         return pokemon
 
     @chain_api
@@ -522,12 +544,14 @@ class Client:
             if pokemon['individual_stamina']:
                 stamina = pokemon['individual_stamina']
 
-            print '#%03d  %-15s | Lv %4.1f [%6d, %2d] %4d -> %4d / %4d (%3d %% ) |  %2d  %2d  %2d ' % (
+            print '#%03d  %-15s | Lv %3g %4d [%6d, %3d] -> [%6d, %3d] %4d / %4d (%3d %% ) |  %2d  %2d  %2d ' % (
                 pokemon_id, PokemonId.Name(pokemon_id),
-                round(pokemon['level'],1), pokemon['dust_needed'], pokemon['candy_needed'],
-                pokemon['cp'], pokemon['max_cp'], pokemon['perfect_cp'], pokemon['pcp']*100,
+                round(pokemon['level'], 1), pokemon['cp'], 
+                pokemon['dust_needed_curr'], pokemon['candy_needed_curr'],
+                pokemon['dust_needed_max'], pokemon['candy_needed_max'],
+                pokemon['max_cp'], pokemon['perfect_cp'], pokemon['pcp'] * 100,
                 attack, defense, stamina)
-        print ' ID      NAME         | LEVEL   [DUST, CANDY] CURR -> MAX  / THEORY    %   | ATK DEF STA'
+        print ' ID      NAME         | LEVEL  CURR [DUST, CANDY] -> [DUST, CANDY]  MAX / THEORY    %   | ATK DEF STA'
 
     @chain_api
     def summary(self):
@@ -579,8 +603,8 @@ class Client:
 
         cell_ids = self._get_cell_ids()
         timestamps = [0, ] * len(cell_ids)
-        self._get_inventory()
         self._get_player()
+        self._get_inventory()
         self._get_hatched_eggs()
         self._api.get_map_objects(
             latitude=self._lat,
@@ -699,7 +723,10 @@ class Client:
 
     # Login
     def login(self, auth_service, username, password):
-        return self._api.login(auth_service, username, password)
+        ret = self._api.login(auth_service, username, password)
+        if ret:
+            self.scan()
+        return ret
 
     def test(self):
         self._api.get_player()
