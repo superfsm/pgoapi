@@ -224,7 +224,7 @@ class Client:
                 # Pokemon
                 pokemon = inventory_item['inventory_item_data']['pokemon_data']
                 if pokemon['cp']:
-                    pokemon['max_cp'] = self._max_cp(pokemon)
+                    pokemon['max_cp'], pokemon['perf_cp'] = self._max_cp(pokemon)
                     self.pokemon[pokemon['pokemon_id']].append(pokemon)
 
                 elif pokemon['is_egg'] is True:
@@ -262,7 +262,7 @@ class Client:
                 log.warning('ENCOUNTER = {}')
 
             if responses['ENCOUNTER']['status'] == 1:
-                max_cp = self._max_cp(responses['ENCOUNTER']['wild_pokemon']['pokemon_data'])
+                max_cp = self._max_cp(responses['ENCOUNTER']['wild_pokemon']['pokemon_data'])[0]
                 log.info('ENCOUNTER MAX_CP = {} PROB = {}'.format(
                     max_cp, responses['ENCOUNTER']['capture_probability']['capture_probability']))
                 # Bool, CP, ID
@@ -394,17 +394,23 @@ class Client:
         while POKEDEX[pokemon_id]['EvolvesTo']:
             pokemon_id = POKEDEX[POKEDEX[pokemon_id]['EvolvesTo']]['PkMn']
 
-        attack = POKEDEX[pokemon_id]['BaseAttack']
-        defense = POKEDEX[pokemon_id]['BaseDefense']
-        stamina = POKEDEX[pokemon_id]['BaseStamina']
+        attack = base_attack = POKEDEX[pokemon_id]['BaseAttack']
+        defense = base_defense = POKEDEX[pokemon_id]['BaseDefense']
+        stamina = base_stamina = POKEDEX[pokemon_id]['BaseStamina']
         if pokemon['individual_attack']:
-            attack += pokemon['individual_attack']
+            attack = base_attack + pokemon['individual_attack']
         if pokemon['individual_defense']:
-            defense += pokemon['individual_defense']
+            defense = base_defense + pokemon['individual_defense']
         if pokemon['individual_stamina']:
-            stamina += pokemon['individual_stamina']
+            stamina = base_stamina + pokemon['individual_stamina']
         max_cp = (attack * (defense**0.5) * (stamina**0.5) * (0.79030001**2)) / 10
-        return max_cp
+
+        attack = base_attack + 15
+        defense = base_defense + 15
+        stamina = base_stamina + 15
+        perfect_cp = (attack * (defense**0.5) * (stamina**0.5) * (0.79030001**2)) / 10
+
+        return (max_cp, perfect_cp)
 
     @chain_api
     def bulk_release_pokemon(self):
@@ -454,6 +460,37 @@ class Client:
             self.profile['level'], exp, exp_total, float(exp) / exp_total * 100,
             self.profile['km_walked'], cnt_item, self.profile['max_item_storage'],
             cnt_pokemon, self.profile['max_pokemon_storage'])
+
+    def summary_pokemon(self):
+        ranking = []
+        for idx in range(1, POKEMON_ID_MAX + 1):
+            ranking += self.pokemon[idx]
+
+        ranking = sorted(ranking, key=lambda p: p['max_cp'])
+
+
+        for pokemon in ranking:
+            pokemon_id = pokemon['pokemon_id']
+
+            final_id = pokemon['pokemon_id']
+            while POKEDEX[final_id]['EvolvesTo']:
+                final_id = POKEDEX[POKEDEX[final_id]['EvolvesTo']]['PkMn']
+
+            attack = 0
+            defense = 0
+            stamina = 0
+            if pokemon['individual_attack']:
+                attack = pokemon['individual_attack']
+            if pokemon['individual_defense']:
+                defense = pokemon['individual_defense']
+            if pokemon['individual_stamina']:
+                stamina = pokemon['individual_stamina']
+
+            print '#%03d  %-15s | %4d -> %4d / %4d ( %3d %% ) |  %2d  %2d  %2d ' % (
+                pokemon_id, PokemonId.Name(pokemon_id),
+                pokemon['cp'], pokemon['max_cp'], pokemon['perf_cp'], pokemon['max_cp']/pokemon['perf_cp']*100,
+                attack, defense, stamina)
+        print ' ID      NAME         | CURR -> MAX  / THEORY     %   | ATK DEF STA'
 
     @chain_api
     def summary(self):
