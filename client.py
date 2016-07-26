@@ -281,7 +281,7 @@ class Client:
             if responses['ENCOUNTER']['status'] == 1:
                 pokemon = responses['ENCOUNTER']['wild_pokemon']['pokemon_data']
                 self._calc_attr(pokemon)
-                log.info('ENCOUNTER = "{}" PROB = {}'.format(
+                log.info('ENCOUNTER = "{}", PROB = {}'.format(
                     PokemonId.Name(pokemon['pokemon_id']), responses['ENCOUNTER']['capture_probability']['capture_probability']))
                 # Bool, CP, ID
                 return (
@@ -363,6 +363,7 @@ class Client:
         cnt_max_potion = self.item[ItemId.Value('ITEM_MAX_POTION')]
 
         cnt_revive = self.item[ItemId.Value('ITEM_REVIVE')]
+        cnt_max_revive = self.item[ItemId.Value('ITEM_MAX_REVIVE')]
         cnt_berry = self.item[ItemId.Value('ITEM_RAZZ_BERRY')]
 
         if cnt_max_potion > POTION_MAX:
@@ -395,8 +396,11 @@ class Client:
         elif cnt_master_ball + cnt_ultra_ball + cnt_great_ball + cnt_poke_ball > BALL_MAX:
             self.recycle_inventory_item(ItemId.Value('ITEM_POKE_BALL'), cnt_master_ball + cnt_ultra_ball + cnt_great_ball + cnt_poke_ball - BALL_MAX)
 
-        if cnt_revive > REVIVE_MAX:
-            self.recycle_inventory_item(ItemId.Value('ITEM_REVIVE'), cnt_revive - REVIVE_MAX)
+        if cnt_max_revive > REVIVE_MAX:
+            self.recycle_inventory_item(ItemId.Value('ITEM_MAX_REVIVE'), cnt_max_revive - REVIVE_MAX)
+            self.recycle_inventory_item(ItemId.Value('ITEM_REVIVE'), cnt_revive)
+        elif cnt_max_revive + cnt_revive > REVIVE_MAX:
+            self.recycle_inventory_item(ItemId.Value('ITEM_REVIVE'), cnt_max_revive + cnt_revive - REVIVE_MAX)
         if cnt_berry > BERRY_MAX:
             self.recycle_inventory_item(ItemId.Value('ITEM_RAZZ_BERRY'), cnt_berry - BERRY_MAX)
 
