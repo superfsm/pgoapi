@@ -89,7 +89,7 @@ class Client:
         self._lng = 0
         self._alt = 0
 
-        self.profile = {}
+        self.profile = defaultdict(int)
         self.incubator = {}
         self.item = defaultdict(int)
         self.pokemon = defaultdict(list)
@@ -516,6 +516,8 @@ class Client:
 
         for _, v in self.incubator.iteritems():
             if 'pokemon_id' in v:
+                if 'start_km_walked' not in v:
+                    v['start_km_walked'] = 0
                 current_km = round(self.profile['km_walked'] - v['start_km_walked'],3)
                 target_km = round(v['target_km_walked'] - v['start_km_walked'],3)
                 print 'INCUBATOR: {}/{}'.format(current_km, target_km)
