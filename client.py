@@ -278,7 +278,7 @@ class Client:
             if responses['ENCOUNTER']['status'] == 1:
                 pokemon = responses['ENCOUNTER']['wild_pokemon']['pokemon_data']
                 self._calc_attr(pokemon)
-                log.info('ENCOUNTER = "{} PROB = {}'.format(
+                log.info('ENCOUNTER = "{}" PROB = {}'.format(
                     PokemonId.Name(pokemon['pokemon_id']), responses['ENCOUNTER']['capture_probability']['capture_probability']))
                 # Bool, CP, ID
                 return (
