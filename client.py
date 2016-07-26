@@ -420,6 +420,27 @@ class Client:
 
     def _calc_attr(self, pokemon):
         pokemon_id = pokemon['pokemon_id']
+        while POKEDEX[pokemon_id]['EvolvesTo']:
+            pokemon_id = POKEDEX[POKEDEX[pokemon_id]['EvolvesTo']]['PkMn']
+
+        # Stats
+        _ba = POKEDEX[pokemon_id]['BaseAttack']
+        _bd = POKEDEX[pokemon_id]['BaseDefense']
+        _bs = POKEDEX[pokemon_id]['BaseStamina']
+        _ia = _id = _is = 0
+        if pokemon['individual_attack']:
+            _ia = pokemon['individual_attack']
+        if pokemon['individual_defense']:
+            _id = pokemon['individual_defense']
+        if pokemon['individual_stamina']:
+            _is = pokemon['individual_stamina']
+        # pokemon['piv'] = (_ia + _id + _is) / 45.0
+        max_cp = (_ba+_ia) * ((_bd+_id)**0.5) * ((_bs+_is)**0.5) * (LEVEL_TO_CPM[40]**2) / 10
+        pokemon['max_cp'] = max_cp
+
+
+    def _calc_attr_detail(self, pokemon):
+        pokemon_id = pokemon['pokemon_id']
 
         dust_needed = 0
         candy_needed = 0
@@ -473,16 +494,13 @@ class Client:
         # CP
         evolve_cp  = (_ba+_ia) * ((_bd+_id)**0.5) * ((_bs+_is)**0.5) * (LEVEL_TO_CPM[pokemon['level']]**2) / 10
         evolve_up_cp  = (_ba+_ia) * ((_bd+_id)**0.5) * ((_bs+_is)**0.5) * (LEVEL_TO_CPM[ceiling_level]**2) / 10
-        max_cp     = (_ba+_ia) * ((_bd+_id)**0.5) * ((_bs+_is)**0.5) * (LEVEL_TO_CPM[40]**2) / 10
         perfect_cp = (_ba+ 15) * ((_bd+ 15)**0.5) * ((_bs+ 15)**0.5) * (LEVEL_TO_CPM[40]**2) / 10
         worst_cp   = _ba * (_bd**0.5) * (_bs**0.5) * (LEVEL_TO_CPM[40]**2) / 10
 
         pokemon['evolve_cp'] = evolve_cp
         pokemon['evolve_up_cp'] = evolve_up_cp
-        pokemon['max_cp'] = max_cp
         pokemon['perfect_cp'] = perfect_cp
-        pokemon['pcp'] = (max_cp - worst_cp) / (perfect_cp - worst_cp)
-        # pokemon['worst_cp'] = worst_cp
+        pokemon['pcp'] = (pokemon['max_cp'] - worst_cp) / (perfect_cp - worst_cp)
 
         return pokemon
 
@@ -545,6 +563,7 @@ class Client:
 
 
         for pokemon in ranking:
+            self._calc_attr_detail(pokemon)
             pokemon_id = pokemon['pokemon_id']
 
             final_id = pokemon['pokemon_id']
@@ -562,7 +581,7 @@ class Client:
             if pokemon['individual_stamina']:
                 stamina = pokemon['individual_stamina']
 
-            print '#%03d  %-15s | Lv%3g  %4d [%3d] %4d [%6d, %3d] %4d-> [%6d, %3d] %4d / %4d (%3d %% ) |  %2d  %2d  %2d ' % (
+            print '#%03d  %-15s | Lv%3g  %4d -> [%3d] %4d -> [%6d, %3d] %4d-> [%6d, %3d] %4d / %4d (%3d %% ) |  %2d  %2d  %2d ' % (
                 pokemon_id, PokemonId.Name(pokemon_id),
                 round(pokemon['level'], 1), pokemon['cp'],
                 pokemon['candy_needed_evolve'], pokemon['evolve_cp'],
@@ -572,7 +591,7 @@ class Client:
                 attack,
                 defense,
                 stamina)
-        print ' ID      NAME         | LEVEL  CURR [EVO] +EVO [DUUT, CANDY]  +UP-> [DUST, CANDY]  MAX / THEORY    %   | ATK DEF STA'
+        print ' ID      NAME         | LEVEL  CURR -> [EVO] +EVO -> [DUUT, CANDY]  +UP-> [DUST, CANDY]  MAX / THEORY    %   | ATK DEF STA'
 
     @chain_api
     def summary(self):
