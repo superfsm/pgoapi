@@ -591,7 +591,7 @@ class Client:
                 attack,
                 defense,
                 stamina)
-        print ' ID      NAME         | LEVEL  CURR -> [EVO] +EVO -> [DUUT, CANDY]  +UP-> [DUST, CANDY]  MAX / THEORY    %   | ATK DEF STA'
+        print ' ID      NAME         | LEVEL  CURR -> [CND] +EVO -> [DUST, CANDY]  +UP-> [DUST, CANDY]  MAX / THEORY    %   | ATK DEF STA'
 
     @chain_api
     def summary(self):
