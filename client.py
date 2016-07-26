@@ -93,6 +93,14 @@ def chain_api(func):
         return self
     return wrapper
 
+def timing(func):
+    def wrapper(self, *args, **kwargs):
+        startTime = int(round(time.time() * 1000))
+        func(self, *args, **kwargs)
+        endTime = int(round(time.time() * 1000))
+        print("###", endTime - startTime, 'ms')
+        return self
+    return wrapper
 
 class Client:
 
@@ -127,7 +135,7 @@ class Client:
 
     # Move to object
     @chain_api
-    def move_to_obj(self, obj, speed=20):
+    def move_to_obj(self, obj, speed=30):
         self.move_to(obj['latitude'], obj['longitude'], speed=speed)
 
     # Move to position at speed(m)/s
@@ -419,6 +427,7 @@ class Client:
         while POKEDEX[pokemon_id]['EvolvesTo']:
             candy_needed += POKEDEX[pokemon_id]['CandyToEvolve']
             pokemon_id = POKEDEX[POKEDEX[pokemon_id]['EvolvesTo']]['PkMn']
+        pokemon['candy_needed_evolve'] = candy_needed
 
         # Level
         cpm = pokemon['cp_multiplier']
@@ -444,17 +453,6 @@ class Client:
             _is = pokemon['individual_stamina']
         # pokemon['piv'] = (_ia + _id + _is) / 45.0
 
-        # CP
-        evolve_cp  = (_ba+_ia) * ((_bd+_id)**0.5) * ((_bs+_is)**0.5) * (LEVEL_TO_CPM[pokemon['level']]**2) / 10
-        max_cp     = (_ba+_ia) * ((_bd+_id)**0.5) * ((_bs+_is)**0.5) * (LEVEL_TO_CPM[40]**2) / 10
-        perfect_cp = (_ba+ 15) * ((_bd+ 15)**0.5) * ((_bs+ 15)**0.5) * (LEVEL_TO_CPM[40]**2) / 10
-        worst_cp   = _ba * (_bd**0.5) * (_bs**0.5) * (LEVEL_TO_CPM[40]**2) / 10
-
-        pokemon['max_cp'] = max_cp
-        pokemon['perfect_cp'] = perfect_cp
-        pokemon['pcp'] = (max_cp - worst_cp) / (perfect_cp - worst_cp)
-        # pokemon['worst_cp'] = worst_cp
-
         # Dust/Candy
         ceiling_level = self.profile['level'] + 1.5
         if ceiling_level > 40:
@@ -471,6 +469,20 @@ class Client:
 
         pokemon['dust_needed_max'] = dust_needed
         pokemon['candy_needed_max'] = candy_needed
+
+        # CP
+        evolve_cp  = (_ba+_ia) * ((_bd+_id)**0.5) * ((_bs+_is)**0.5) * (LEVEL_TO_CPM[pokemon['level']]**2) / 10
+        evolve_up_cp  = (_ba+_ia) * ((_bd+_id)**0.5) * ((_bs+_is)**0.5) * (LEVEL_TO_CPM[ceiling_level]**2) / 10
+        max_cp     = (_ba+_ia) * ((_bd+_id)**0.5) * ((_bs+_is)**0.5) * (LEVEL_TO_CPM[40]**2) / 10
+        perfect_cp = (_ba+ 15) * ((_bd+ 15)**0.5) * ((_bs+ 15)**0.5) * (LEVEL_TO_CPM[40]**2) / 10
+        worst_cp   = _ba * (_bd**0.5) * (_bs**0.5) * (LEVEL_TO_CPM[40]**2) / 10
+
+        pokemon['evolve_cp'] = evolve_cp
+        pokemon['evolve_up_cp'] = evolve_up_cp
+        pokemon['max_cp'] = max_cp
+        pokemon['perfect_cp'] = perfect_cp
+        pokemon['pcp'] = (max_cp - worst_cp) / (perfect_cp - worst_cp)
+        # pokemon['worst_cp'] = worst_cp
 
         return pokemon
 
@@ -523,6 +535,7 @@ class Client:
             self.profile['km_walked'], cnt_item, self.profile['max_item_storage'],
             cnt_pokemon, self.profile['max_pokemon_storage'])
 
+    @chain_api
     def summary_pokemon(self):
         ranking = []
         for idx in range(1, POKEMON_ID_MAX + 1):
@@ -541,6 +554,7 @@ class Client:
             attack = 0
             defense = 0
             stamina = 0
+
             if pokemon['individual_attack']:
                 attack = pokemon['individual_attack']
             if pokemon['individual_defense']:
@@ -548,14 +562,17 @@ class Client:
             if pokemon['individual_stamina']:
                 stamina = pokemon['individual_stamina']
 
-            print '#%03d  %-15s | Lv %3g %4d [%6d, %3d] -> [%6d, %3d] %4d / %4d (%3d %% ) |  %2d  %2d  %2d ' % (
+            print '#%03d  %-15s | Lv%3g  %4d [%3d] %4d [%6d, %3d] %4d-> [%6d, %3d] %4d / %4d (%3d %% ) |  %2d  %2d  %2d ' % (
                 pokemon_id, PokemonId.Name(pokemon_id),
-                round(pokemon['level'], 1), pokemon['cp'], 
-                pokemon['dust_needed_curr'], pokemon['candy_needed_curr'],
-                pokemon['dust_needed_max'], pokemon['candy_needed_max'],
-                pokemon['max_cp'], pokemon['perfect_cp'], pokemon['pcp'] * 100,
-                attack, defense, stamina)
-        print ' ID      NAME         | LEVEL  CURR [DUST, CANDY] -> [DUST, CANDY]  MAX / THEORY    %   | ATK DEF STA'
+                round(pokemon['level'], 1), pokemon['cp'],
+                pokemon['candy_needed_evolve'], pokemon['evolve_cp'],
+                pokemon['dust_needed_curr'], pokemon['candy_needed_curr'], pokemon['evolve_up_cp'],
+                pokemon['dust_needed_max'], pokemon['candy_needed_max'], pokemon['max_cp'],
+                pokemon['perfect_cp'], pokemon['pcp'] * 100,
+                attack,
+                defense,
+                stamina)
+        print ' ID      NAME         | LEVEL  CURR [EVO] +EVO [DUUT, CANDY]  +UP-> [DUST, CANDY]  MAX / THEORY    %   | ATK DEF STA'
 
     @chain_api
     def summary(self):
