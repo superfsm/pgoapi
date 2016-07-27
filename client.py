@@ -507,16 +507,28 @@ class Client:
     @chain_api
     def bulk_release_pokemon(self):
 
-        ranking = []
-        for idx in range(1, POKEMON_ID_MAX + 1):
-            ranking += self.pokemon[idx]
-
-        ranking = [(p['pokemon_id'],p['id'],p['max_cp']) for p in ranking]
-        ranking = sorted(ranking, key=lambda p: p[2])
-
         self.summary_pokemon()
 
         removed = 0
+        for pokemon_id in range(1, POKEMON_ID_MAX + 1):
+            candy = self.candy[pokemon_id]
+            cnt_extra = 5
+            for pokemon in self.pokemon[pokemon_id]:
+                candy -= pokemon['candy_needed_evolve']
+                if candy < 0:
+                    cnt_extra -= 1
+                if cnt_extra < 0 and pokemon['evolve_cp'] < 1500:
+                    print pokemon_id, 'RELEASE_POKEMON max_cp =', pokemon['max_cp']
+                    self.release_pokemon(pokemon['id'])
+                    removed = 0
+
+        ranking = []
+        for pokemon_id in range(1, POKEMON_ID_MAX + 1):
+            ranking += self.pokemon[pokemon_id]
+
+        ranking = [(p['pokemon_id'], p['id'], p['max_cp']) for p in ranking]
+        ranking = sorted(ranking, key=lambda p: p[2])
+
         idx = 0
         while removed <= 50:
             pokemon_id = ranking[idx][0]
@@ -526,7 +538,7 @@ class Client:
             if len(self.pokemon[pokemon_id]) <= 1 or self.pokemon[pokemon_id][0]['id'] == _id:
                 continue
             else:
-                print idx,'RELEASE_POKEMON max_cp =',max_cp
+                print idx, 'RELEASE_POKEMON max_cp =', max_cp
                 removed += 1
                 self.release_pokemon(_id)
                 time.sleep(0.5)
@@ -562,7 +574,6 @@ class Client:
 
         ranking = sorted(ranking, key=lambda p: p['max_cp'])
 
-
         for pokemon in ranking:
             self._calc_attr_detail(pokemon)
             pokemon_id = pokemon['pokemon_id']
@@ -582,8 +593,8 @@ class Client:
             if pokemon['individual_stamina']:
                 stamina = pokemon['individual_stamina']
 
-            print '#%03d  %-15s | Lv%3g  %4d -> [%3d] %4d -> [%6d, %3d] %4d-> [%6d, %3d] %4d / %4d (%3d %% ) |  %2d  %2d  %2d ' % (
-                pokemon_id, PokemonId.Name(pokemon_id),
+            print '#%03d  %-15s (%4d)| Lv%3g  %4d -> [%3d] %4d -> [%6d, %3d] %4d-> [%6d, %3d] %4d / %4d (%3d %% ) |  %2d  %2d  %2d ' % (
+                pokemon_id, PokemonId.Name(pokemon_id), self.candy[pokemon_id],
                 round(pokemon['level'], 1), pokemon['cp'],
                 pokemon['candy_needed_evolve'], pokemon['evolve_cp'],
                 pokemon['dust_needed_curr'], pokemon['candy_needed_curr'], pokemon['evolve_up_cp'],
@@ -592,7 +603,7 @@ class Client:
                 attack,
                 defense,
                 stamina)
-        print ' ID      NAME         | LEVEL  CURR -> [CND] +EVO -> [DUST, CANDY]  +UP-> [DUST, CANDY]  MAX / THEORY    %   | ATK DEF STA'
+        print ' ID      NAME         (CAND)| LEVEL  CURR -> [CND] +EVO -> [DUST, CANDY]  +UP-> [DUST, CANDY]  MAX / THEORY    %   | ATK DEF STA'
 
     @chain_api
     def summary(self):

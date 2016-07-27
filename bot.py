@@ -207,9 +207,9 @@ def main():
         if not client.login(str(config.auth_service), str(config.username), str(config.password)):
             print 'Login failed, retry after 30s'
             time.sleep(30)
-            continue    
+            continue
         client.jump_to(*position)
-        client.scan().summary().status()
+        client.scan().summary().summary_pokemon().status() #.bulk_release_pokemon()
         sorted_pokestops = TSP(client.get_pokestop()).solve()
         # show_map(sorted_pokestops, [])
         for pokestop in sorted_pokestops:
