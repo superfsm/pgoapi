@@ -30,6 +30,8 @@ import logging
 import requests
 import subprocess
 
+from google.protobuf import message
+
 from importlib import import_module
 
 from pgoapi.protobuf_to_dict import protobuf_to_dict
@@ -91,7 +93,12 @@ class RpcApi:
         response = self._make_rpc(endpoint, request_proto)
         
         response_dict = self._parse_main_response(response, subrequests)
-        
+
+        if isinstance(response_dict, dict) and 'status_code' in response_dict:
+            sc = response_dict['status_code']
+            if sc == 102:
+                raise NotLoggedInException()
+
         return response_dict
     
     def _build_main_request(self, subrequests, player_position = None):
@@ -187,7 +194,7 @@ class RpcApi:
         response_proto = ResponseEnvelope()
         try:
             response_proto.ParseFromString(response_raw.content)
-        except google.protobuf.message.DecodeError as e:
+        except message.DecodeError as e:
             self.log.warning('Could not parse response: %s', str(e))
             return False
         
