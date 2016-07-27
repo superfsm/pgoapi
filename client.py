@@ -432,7 +432,12 @@ class Client:
 
         if (pokemon_id == PokemonId.Value('PIDGEY') or
             pokemon_id == PokemonId.Value('CATERPIE') or
-            pokemon_id == PokemonId.Value('WEEDLE')):
+            pokemon_id == PokemonId.Value('WEEDLE') or
+            pokemon_id == PokemonId.Value('RATTATA') or
+            pokemon_id == PokemonId.Value('SPEAROW') or
+            pokemon_id == PokemonId.Value('ZUBAT') or
+            pokemon_id == PokemonId.Value('DODUO')):
+
             pokemon['isKeep'] = True
 
         while POKEDEX[pokemon_id]['EvolvesTo']:
@@ -596,13 +601,17 @@ class Client:
 
                 pokemon_id = pokemon['pokemon_id']
                 print '#%03d  %-15s (%4d)| Lv%3g  %4d -> [%3d] %4d -> [%6d, %3d] %4d-> [%6d, %3d] %4d / %4d (%3d %% ) |  %2d  %2d  %2d %1s' % (
-                    pokemon_id, PokemonId.Name(pokemon_id), self.candy[pokemon_id],
+                    pokemon_id, PokemonId.Name(pokemon_id), self.candy[family_id],
                     round(pokemon['level'], 1), pokemon['cp'],
                     pokemon['candy_needed_evolve'], pokemon['evolve_cp'],
                     pokemon['dust_needed_curr'], pokemon['candy_needed_curr'], pokemon['evolve_up_cp'],
                     pokemon['dust_needed_max'], pokemon['candy_needed_max'], pokemon['max_cp'],
                     pokemon['perfect_cp'], pokemon['pcp'] * 100,
                     attack, defense, stamina, isKeep)
+
+            print '# TOTAL = %d X [%d] = %d' % (
+                len(self.family[family_id]), POKEDEX[family_id]['CandyToEvolve'],
+                len(self.family[family_id]) * POKEDEX[family_id]['CandyToEvolve'])
         print line
         print title
         print 'KEEP =', keep_cnt
@@ -664,6 +673,8 @@ class Client:
 
             ret = -1
             while ret == -1 or ret == 2 or ret == 4:
+                if ret == 2 or ret == 4:
+                    time.sleep(1)
                 if len(self.family[family_id]) == 0 or self.candy[family_id] < 50 or max_cp > 2500:
                     self.use_item_capture(pokemon)
                     if self.item[ItemId.Value('ITEM_ULTRA_BALL')] > 0:
