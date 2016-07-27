@@ -135,7 +135,7 @@ class Client:
 
     # Move to object
     @chain_api
-    def move_to_obj(self, obj, speed=30):
+    def move_to_obj(self, obj, speed=20):
         self.move_to(obj['latitude'], obj['longitude'], speed=speed)
 
     # Move to position at speed(m)/s
@@ -529,6 +529,7 @@ class Client:
                 print idx,'RELEASE_POKEMON max_cp =',max_cp
                 removed += 1
                 self.release_pokemon(_id)
+                time.sleep(0.5)
 
     @chain_api
     def release_pokemon(self, pokemon_id):
