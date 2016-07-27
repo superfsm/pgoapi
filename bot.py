@@ -209,7 +209,7 @@ def main():
             time.sleep(30)
             continue
         client.jump_to(*position)
-        client.scan().summary().summary_pokemon().status() #.bulk_release_pokemon()
+        client.scan().summary().summary_pokemon() #.bulk_release_pokemon()
         sorted_pokestops = TSP(client.get_pokestop()).solve()
         # show_map(sorted_pokestops, [])
         for pokestop in sorted_pokestops:
