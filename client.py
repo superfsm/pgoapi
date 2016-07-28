@@ -180,7 +180,7 @@ class Client:
                     time.sleep(0.5)
             self.jump_to(self._lat + delta_lat, self._lng + delta_lng)
             log.info('-')
-            time.sleep(0.5)
+            time.sleep(1)
 
     # Move to object
     @chain_api
