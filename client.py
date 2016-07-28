@@ -55,6 +55,15 @@ CHEAP_LIST = [
     PokemonId.Value('ZUBAT'),
     PokemonId.Value('DODUO')]
 
+# CHEAP_LIST += [
+#     PokemonId.Value('SANDSHREW'),
+#     PokemonId.Value('EKANS'),
+#     PokemonId.Value('DIGLETT'),
+#     PokemonId.Value('MEOWTH'),
+#     PokemonId.Value('MANKEY'),
+#     PokemonId.Value('KRABBY'),
+#     PokemonId.Value('HORSEA')]
+
 class MyDict(dict):
 
     def __missing__(self, key):
@@ -604,22 +613,22 @@ class Client:
         #                 cnt += 1
         #                 self.evolve_pokemon(pokemon, dry)
 
-
         log.info('TOTAL EVOLVED = {}'.format(cnt))
         log.info('TOTAL EXP = {}'.format(cnt*500))
 
     @chain_api
-    def manual_evolve_pokemon(self, pokemon_id):
+    def manual_evolve_pokemon(self, pokemon_id, dry=True):
         log.info('MANUAL EVOLVE_POKEMON "%d"' % (pokemon_id))
-        self._api.evolve_pokemon(pokemon_id=pokemon_id)
-        self._call()
-        time.sleep(1)
+        if not dry:
+            self._api.evolve_pokemon(pokemon_id=pokemon_id)
+            self._call()
+            time.sleep(1)
 
     @chain_api
-    def evolve_pokemon(self, pokemon, dry = True):
+    def evolve_pokemon(self, pokemon, dry=True):
         log.info('EVOLVE_POKEMON "%s" %d -> %d' % (pokemon['pokemon_id'], pokemon['cp'], pokemon['evolve_cp']))
         if not dry:
-            self._api.evolve_pokemon(pokemon_id=pokemon['pokemon_id'])
+            self._api.evolve_pokemon(pokemon_id=pokemon['id'])
             self._call()
             time.sleep(1)
 
@@ -662,7 +671,8 @@ class Client:
             self.family[family_id].sort(reverse=True, key=lambda p: p['evolve_cp'])
             for pokemon in self.family[family_id][:EVOLVE_FILTER]:
                 pokemon['isKeep'] = True
-
+            self.family[family_id].sort(reverse=True, key=lambda p: p['cp'])
+            self.family[family_id][0]['isKeep'] = True
             for pokemon in self.family[family_id]:
                 if pokemon['cp'] > 1500 or pokemon['evolve_cp'] > 1800:
                     pokemon['isKeep'] = True
@@ -708,8 +718,6 @@ class Client:
 
         if release_cnt == 0:
             print '============== pokemon full, nothing to release'
-            exit(1)
-
 
     @chain_api
     def summary(self):

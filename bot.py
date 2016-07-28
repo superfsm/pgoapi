@@ -202,8 +202,7 @@ def main():
 
     ################################################ Actual
     evolve = False
-    evolve_list = [
-    ]
+    evolve_list = [ ]
 
 
     while True:
@@ -216,9 +215,9 @@ def main():
         client.scan().summary().summary_pokemon()
 
         if evolve:
-            client.bulk_evolve_pokemon()
+            client.bulk_evolve_pokemon(dry=True)
             for pokemon_id in evolve_list:
-                client.manual_evolve_pokemon(pokemon_id)
+                client.manual_evolve_pokemon(pokemon_id, dry=True)
         sorted_pokestops = TSP(client.get_pokestop()).solve()
         # show_map(sorted_pokestops, [])
         for pokestop in sorted_pokestops:
