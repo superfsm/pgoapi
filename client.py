@@ -585,7 +585,7 @@ class Client:
                 continue
 
             candy_left = self.candy[family_id]
-            candy_needed = 0
+            candy_needed = 200
             pokemon_id = family_id
             while POKEDEX[pokemon_id]['EvolvesTo']:
                 candy_needed += POKEDEX[pokemon_id]['CandyToEvolve']
