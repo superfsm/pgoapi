@@ -37,7 +37,7 @@ from pgoapi.protos.POGOProtos.Inventory_pb2 import ItemId
 from pgoapi.protos.POGOProtos.Enums_pb2 import PokemonId
 from pgoapi.protos.POGOProtos.Networking.Responses_pb2 import (
     FortSearchResponse, EncounterResponse, CatchPokemonResponse, ReleasePokemonResponse,
-    RecycleInventoryItemResponse, UseItemEggIncubatorResponse)
+    RecycleInventoryItemResponse, UseItemEggIncubatorResponse, EvolvePokemonResponse)
 
 from google.protobuf.internal import encoder
 from geopy.distance import great_circle
@@ -324,6 +324,17 @@ class Client:
                     sum(responses['CATCH_POKEMON']['capture_award']['xp'])))
             return status
 
+        # EVOLVE_POKEMON
+        if 'EVOLVE_POKEMON' in responses:
+            result = responses['EVOLVE_POKEMON']['result']
+            if result:
+                log.info('EVOLVE_POKEMON = {}, exp = {}, +{} Candy'.format(
+                    EvolvePokemonResponse.Result.Name(result),
+                    responses['EVOLVE_POKEMON']['experience_awarded'],
+                    responses['EVOLVE_POKEMON']['candy_awarded']))
+            else:
+                log.warning('RELEASE_POKEMON = {}')
+
         # RELEASE_POKEMON
         if 'RELEASE_POKEMON' in responses:
             candy_awarded = responses['RELEASE_POKEMON']['candy_awarded']
@@ -431,12 +442,12 @@ class Client:
         pokemon['family_id'] = POKEDEX[pokemon_id]['family_id']
 
         if (pokemon_id == PokemonId.Value('PIDGEY') or
-            pokemon_id == PokemonId.Value('CATERPIE') or
-            pokemon_id == PokemonId.Value('WEEDLE') or
-            pokemon_id == PokemonId.Value('RATTATA') or
-            pokemon_id == PokemonId.Value('SPEAROW') or
-            pokemon_id == PokemonId.Value('ZUBAT') or
-            pokemon_id == PokemonId.Value('DODUO')):
+                pokemon_id == PokemonId.Value('CATERPIE') or
+                pokemon_id == PokemonId.Value('WEEDLE') or
+                pokemon_id == PokemonId.Value('RATTATA') or
+                pokemon_id == PokemonId.Value('SPEAROW') or
+                pokemon_id == PokemonId.Value('ZUBAT') or
+                pokemon_id == PokemonId.Value('DODUO')):
 
             pokemon['isKeep'] = True
 
@@ -542,6 +553,23 @@ class Client:
         self._api.release_pokemon(pokemon_id=pokemon_id)
         self._call()
 
+
+    @chain_api
+    def bulk_evolve_pokemon(self):
+
+        candidates = ['PIDGEY','CATERPIE','WEEDLE','RATTATA','SPEAROW','ZUBAT','DODUO']
+        for name in candidates:
+            for pokemon in self.family[PokemonId.Value(name)]:
+                if pokemon['pokemon_id'] == PokemonId.Value(name):
+                    log.info('EVOLVE_POKEMON "%s" %d -> %d' % (name, pokemon['cp'], pokemon['evolve_cp']))
+                    # self.evolve_pokemon(pokemon['id'])
+
+
+    @chain_api
+    def evolve_pokemon(self, pokemon_id):
+        self._api.evolve_pokemon(pokemon_id=pokemon_id)
+        self._call()
+
     @chain_api
     def status(self):
 
@@ -580,6 +608,13 @@ class Client:
             for pokemon in self.family[family_id][:EVOLVE_FILTER]:
                 pokemon['isKeep'] = True
 
+            # self.family[family_id].sort(reverse=True, key=lambda p: p['cp'])
+            # for pokemon in self.family[family_id]:
+            #     if pokemon['cp'] > 1500:
+            #         pokemon['isKeep'] = True
+            #     else:
+            #         break
+
             print line
             for pokemon in self.family[family_id]:
                 attack = 0
@@ -616,6 +651,8 @@ class Client:
         print title
         print 'KEEP =', keep_cnt
         print 'RELEASE =', release_cnt
+
+
     @chain_api
     def summary(self):
         print 'PROFILE ='
@@ -795,8 +832,8 @@ class Client:
 
     def _get_cell_ids(self, radius=10):
         lat = self._lat
-        long = self._lng
-        origin = CellId.from_lat_lng(LatLng.from_degrees(lat, long)).parent(15)
+        lng = self._lng
+        origin = CellId.from_lat_lng(LatLng.from_degrees(lat, lng)).parent(15)
         walk = [origin.id()]
         right = origin.next()
         left = origin.prev()
@@ -811,10 +848,11 @@ class Client:
         # Return everything
         return sorted(walk)
 
-    def _encode(self,cellid):
+    def _encode(self, cellid):
         output = []
         encoder._VarintEncoder()(output.append, cellid)
         return ''.join(output)
+
 
 def main():
     pass
