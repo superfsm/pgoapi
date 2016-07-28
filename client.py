@@ -555,14 +555,22 @@ class Client:
 
 
     @chain_api
-    def bulk_evolve_pokemon(self):
+    def bulk_evolve_pokemon(self, dry = True):
 
+        cnt = 0
+        exp = 0
         candidates = ['PIDGEY','CATERPIE','WEEDLE','RATTATA','SPEAROW','ZUBAT','DODUO']
         for name in candidates:
             for pokemon in self.family[PokemonId.Value(name)]:
                 if pokemon['pokemon_id'] == PokemonId.Value(name):
                     log.info('EVOLVE_POKEMON "%s" %d -> %d' % (name, pokemon['cp'], pokemon['evolve_cp']))
-                    # self.evolve_pokemon(pokemon['id'])
+                    cnt += 1
+                    exp += 500
+                    if not dry:
+                        self.evolve_pokemon(pokemon['id'])
+                        time.sleep(1)
+        log.info('TOTAL EVOLVED =', cnt)
+        log.info('TOTAL EXP =', exp)
 
 
     @chain_api
