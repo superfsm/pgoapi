@@ -608,6 +608,12 @@ class Client:
         log.info('TOTAL EVOLVED = {}'.format(cnt))
         log.info('TOTAL EXP = {}'.format(cnt*500))
 
+    @chain_api
+    def manual_evolve_pokemon(self, pokemon_id):
+        log.info('MANUAL EVOLVE_POKEMON "%d"' % (pokemon_id))
+        self._api.evolve_pokemon(pokemon_id=pokemon_id)
+        self._call()
+        time.sleep(1)
 
     @chain_api
     def evolve_pokemon(self, pokemon, dry = True):
@@ -634,8 +640,8 @@ class Client:
         MAX_FILTER = 3
         EVOLVE_FILTER = 3
 
-        title =  ' ID      NAME         (CAND)| LEVEL  CURR -> [CND] +EVO -> [DUST, CANDY]  +UP-> [DUST, CANDY]  MAX / THEORY    %   | ATK DEF STA ID'
-        line  =  '-----------------------------------------------------------------------------------------------------------------------------------'
+        title =  ' ID      NAME         (CAND)| LEVEL  CURR -> [CND] +EVO -> [DUST, CANDY]  +UP-> [DUST, CANDY]  MAX / THEORY    %   | ATK DEF STA KEEP ID'
+        line  =  '----------------------------------------------------------------------------------------------------------------------------------------'
 
         for family_id in range(1, POKEMON_ID_MAX + 1):
             for pokemon in self.family[family_id]:
@@ -699,6 +705,10 @@ class Client:
         print title
         print 'KEEP =', keep_cnt
         print 'RELEASE =', release_cnt
+
+        if release_cnt == 0:
+            print '============== pokemon full, nothing to release'
+            exit(1)
 
 
     @chain_api
