@@ -566,43 +566,43 @@ class Client:
                     cnt += 1
                     self.evolve_pokemon(pokemon, dry)
 
-        log.info('-----------------------SUCK CP')
-        for family_id in range(1, POKEMON_ID_MAX + 1):
-            if len(self.family[pokemon_id]) == 0:
-                continue
-            if self.family[pokemon_id][0]['perfect_cp'] < 1500:
-                for pokemon in self.family[pokemon_id]:
-                    if pokemon['pokemon_id'] == family_id:
-                        cnt += 1
-                        self.evolve_pokemon(pokemon, dry)
+        # log.info('-----------------------SUCK CP')
+        # for family_id in range(1, POKEMON_ID_MAX + 1):
+        #     if len(self.family[pokemon_id]) == 0:
+        #         continue
+        #     if self.family[pokemon_id][0]['perfect_cp'] < 1500:
+        #         for pokemon in self.family[pokemon_id]:
+        #             if pokemon['pokemon_id'] == family_id:
+        #                 cnt += 1
+        #                 self.evolve_pokemon(pokemon, dry)
 
-        log.info('-----------------------RICH')
+        # log.info('-----------------------RICH')
 
 
 
-        for family_id in range(1, POKEMON_ID_MAX + 1):
-            if len(self.family[pokemon_id]) == 0:
-                continue
+        # for family_id in range(1, POKEMON_ID_MAX + 1):
+        #     if len(self.family[pokemon_id]) == 0:
+        #         continue
 
-            candy_left = self.candy[family_id]
-            candy_needed = 200
-            pokemon_id = family_id
-            while POKEDEX[pokemon_id]['EvolvesTo']:
-                candy_needed += POKEDEX[pokemon_id]['CandyToEvolve']
-                pokemon_id = POKEDEX[POKEDEX[pokemon_id]['EvolvesTo']]['PkMn']
-            candy_needed *= 3
-            candy_needed += POKEDEX[pokemon_id]['CandyToEvolve'] * 3
-            candy_left -= candy_needed
+        #     candy_left = self.candy[family_id]
+        #     candy_needed = 200
+        #     pokemon_id = family_id
+        #     while POKEDEX[pokemon_id]['EvolvesTo']:
+        #         candy_needed += POKEDEX[pokemon_id]['CandyToEvolve']
+        #         pokemon_id = POKEDEX[POKEDEX[pokemon_id]['EvolvesTo']]['PkMn']
+        #     candy_needed *= 3
+        #     candy_needed += POKEDEX[pokemon_id]['CandyToEvolve'] * 3
+        #     candy_left -= candy_needed
 
-            self.family[family_id].sort(reverse=True, key=lambda p: p['evolve_cp'])
-            for pokemon in self.family[family_id]:
-                if pokemon['pokemon_id'] == family_id:
-                    candy_left -= POKEDEX[family_id]['CandyToEvolve']
-                    if candy_left < 0:
-                        break
-                    else:
-                        cnt += 1
-                        self.evolve_pokemon(pokemon, dry)
+        #     self.family[family_id].sort(reverse=True, key=lambda p: p['evolve_cp'])
+        #     for pokemon in self.family[family_id]:
+        #         if pokemon['pokemon_id'] == family_id:
+        #             candy_left -= POKEDEX[family_id]['CandyToEvolve']
+        #             if candy_left < 0:
+        #                 break
+        #             else:
+        #                 cnt += 1
+        #                 self.evolve_pokemon(pokemon, dry)
 
 
         log.info('TOTAL EVOLVED = {}'.format(cnt))
@@ -634,8 +634,8 @@ class Client:
         MAX_FILTER = 3
         EVOLVE_FILTER = 3
 
-        title =  ' ID      NAME         (CAND)| LEVEL  CURR -> [CND] +EVO -> [DUST, CANDY]  +UP-> [DUST, CANDY]  MAX / THEORY    %   | ATK DEF STA'
-        line =  '--------------------------------------------------------------------------------------------------------------------------------'
+        title =  ' ID      NAME         (CAND)| LEVEL  CURR -> [CND] +EVO -> [DUST, CANDY]  +UP-> [DUST, CANDY]  MAX / THEORY    %   | ATK DEF STA ID'
+        line  =  '-----------------------------------------------------------------------------------------------------------------------------------'
 
         for family_id in range(1, POKEMON_ID_MAX + 1):
             for pokemon in self.family[family_id]:
@@ -657,12 +657,11 @@ class Client:
             for pokemon in self.family[family_id][:EVOLVE_FILTER]:
                 pokemon['isKeep'] = True
 
-            # self.family[family_id].sort(reverse=True, key=lambda p: p['cp'])
-            # for pokemon in self.family[family_id]:
-            #     if pokemon['cp'] > 1500:
-            #         pokemon['isKeep'] = True
-            #     else:
-            #         break
+            for pokemon in self.family[family_id]:
+                if pokemon['cp'] > 1500 or pokemon['evolve_cp'] > 1800:
+                    pokemon['isKeep'] = True
+                else:
+                    break
 
             print line
             for pokemon in self.family[family_id]:
@@ -684,14 +683,14 @@ class Client:
                     release_cnt += 1
 
                 pokemon_id = pokemon['pokemon_id']
-                print '#%03d  %-15s (%4d)| Lv%3g  %4d -> [%3d] %4d -> [%6d, %3d] %4d-> [%6d, %3d] %4d / %4d (%3d %% ) |  %2d  %2d  %2d %1s' % (
+                print '#%03d  %-15s (%4d)| Lv%3g  %4d -> [%3d] %4d -> [%6d, %3d] %4d-> [%6d, %3d] %4d / %4d (%3d %% ) |  %2d  %2d  %2d %1s %s' % (
                     pokemon_id, PokemonId.Name(pokemon_id), self.candy[family_id],
                     round(pokemon['level'], 1), pokemon['cp'],
                     pokemon['candy_needed_evolve'], pokemon['evolve_cp'],
                     pokemon['dust_needed_curr'], pokemon['candy_needed_curr'], pokemon['evolve_up_cp'],
                     pokemon['dust_needed_max'], pokemon['candy_needed_max'], pokemon['max_cp'],
                     pokemon['perfect_cp'], pokemon['pcp'] * 100,
-                    attack, defense, stamina, isKeep)
+                    attack, defense, stamina, isKeep, pokemon['id'])
 
             print '# TOTAL = %d X [%d] = %d' % (
                 len(self.family[family_id]), POKEDEX[family_id]['CandyToEvolve'],
