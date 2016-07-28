@@ -569,8 +569,8 @@ class Client:
                     if not dry:
                         self.evolve_pokemon(pokemon['id'])
                         time.sleep(1)
-        log.info('TOTAL EVOLVED =', cnt)
-        log.info('TOTAL EXP =', exp)
+        log.info('TOTAL EVOLVED = {}'.format(cnt))
+        log.info('TOTAL EXP = {}'.format(exp))
 
 
     @chain_api
