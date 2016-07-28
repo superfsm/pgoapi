@@ -201,6 +201,10 @@ def main():
         return
 
     ################################################ Actual
+    evolve = True
+    evolve_list = [
+    ]
+
 
     while True:
         client = Client()
@@ -209,7 +213,12 @@ def main():
             time.sleep(30)
             continue
         client.jump_to(*position)
-        client.scan().summary().summary_pokemon().bulk_evolve_pokemon().manual_evolve_pokemon(4907167917776597328)
+        client.scan().summary().summary_pokemon()
+
+        if evolve:
+            client.bulk_evolve_pokemon()
+            for pokemon_id in evolve_list:
+                client.manual_evolve_pokemon(pokemon_id)
         sorted_pokestops = TSP(client.get_pokestop()).solve()
         # show_map(sorted_pokestops, [])
         for pokestop in sorted_pokestops:
