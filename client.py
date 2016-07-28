@@ -177,6 +177,7 @@ class Client:
                 self.scan()
                 for wild_pokemon in self.wild_pokemon:
                     self.catch_pokemon(wild_pokemon)
+                    time.sleep(0.5)
             self.jump_to(self._lat + delta_lat, self._lng + delta_lng)
             log.info('-')
             time.sleep(0.5)
@@ -847,6 +848,7 @@ class Client:
                 encounter_id=pokemon['encounter_id'],
                 spawn_point_guid=pokemon['spawn_point_id'])
             if not self._call():
+                time.sleep(1)
                 self.use_item_capture(pokemon)
         else:
             log.info('USE_ITEM_CAPTURE, out of berry :(')
