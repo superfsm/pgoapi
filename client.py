@@ -46,14 +46,15 @@ from s2sphere import CellId, LatLng
 log = logging.getLogger(__name__)
 
 POKEMON_ID_MAX = 151
-CHEAP_LIST = [
-    PokemonId.Value('PIDGEY'),
-    PokemonId.Value('CATERPIE'),
-    PokemonId.Value('WEEDLE'),
-    PokemonId.Value('RATTATA'),
-    PokemonId.Value('SPEAROW'),
-    PokemonId.Value('ZUBAT'),
-    PokemonId.Value('DODUO')]
+CHEAP_LIST = []
+# CHEAP_LIST = [
+#     PokemonId.Value('PIDGEY'),
+#     PokemonId.Value('CATERPIE'),
+#     PokemonId.Value('WEEDLE'),
+#     PokemonId.Value('RATTATA'),
+#     PokemonId.Value('SPEAROW'),
+#     PokemonId.Value('ZUBAT'),
+#     PokemonId.Value('DODUO')]
 
 # CHEAP_LIST += [
 #     PokemonId.Value('SANDSHREW'),
@@ -161,7 +162,7 @@ class Client:
 
     # Move to object
     @chain_api
-    def move_to_obj(self, obj, speed=20):
+    def move_to_obj(self, obj, speed=30):
         self.move_to(obj['latitude'], obj['longitude'], speed=speed)
 
     # Move to position at speed(m)/s
@@ -622,7 +623,7 @@ class Client:
         if not dry:
             self._api.evolve_pokemon(pokemon_id=pokemon_id)
             self._call()
-            time.sleep(1)
+            time.sleep(0.5)
 
     @chain_api
     def evolve_pokemon(self, pokemon, dry=True):
@@ -630,7 +631,7 @@ class Client:
         if not dry:
             self._api.evolve_pokemon(pokemon_id=pokemon['id'])
             self._call()
-            time.sleep(1)
+            time.sleep(0.5)
 
     @chain_api
     def status(self):
@@ -871,8 +872,8 @@ class Client:
         self._call()
 
     # Login
-    def login(self, auth_service, username, password):
-        ret = self._api.login(auth_service, username, password)
+    def login(self, auth_service, username, password, auth_token=None):
+        ret = self._api.login(auth_service, username, password, auth_token=auth_token)
         if ret:
             self.scan()
         return ret

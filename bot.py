@@ -201,13 +201,23 @@ def main():
         return
 
     ################################################ Actual
+
+    auth_token = None
+    try:
+        with open("token.txt", "r") as f:
+            auth_token = f.read().strip()
+    except:
+        pass
+
+    #######################################################
+
     evolve = False
     evolve_list = [ ]
 
 
     while True:
         client = Client()
-        if not client.login(str(config.auth_service), str(config.username), str(config.password)):
+        if not client.login(str(config.auth_service), str(config.username), str(config.password), auth_token=auth_token):
             print 'Login failed, retry after 30s'
             time.sleep(30)
             continue
@@ -222,7 +232,7 @@ def main():
         # show_map(sorted_pokestops, [])
         for pokestop in sorted_pokestops:
             for wild_pokemon in client.get_wild_pokemon():
-                client.move_to_obj(wild_pokemon).catch_pokemon(wild_pokemon).scan().status()
+                client.catch_pokemon(wild_pokemon).scan().status() #move_to_obj(wild_pokemon).
             client.move_to_obj(pokestop).fort_search(pokestop).scan().status()
         print 'Loop finished, sleeping 30s'
         time.sleep(30)

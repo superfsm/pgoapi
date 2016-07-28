@@ -89,4 +89,5 @@ ENV/
 .ropeproject
 
 # Personal load details
-config.json
+config.json*
+token.txt

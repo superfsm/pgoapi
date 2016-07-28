@@ -25,6 +25,7 @@ Author: tjado <https://github.com/tejado>
 
 import logging
 
+
 class Auth:
 
     def __init__(self):
@@ -47,6 +48,9 @@ class Auth:
 
     def get_token(self):
         return self._auth_token
+
+    def set_token(self, auth_token):
+        self._auth_token = auth_token
 
     def has_ticket(self):
         if self._ticket_expire and self._ticket_start and self._ticket_end:
