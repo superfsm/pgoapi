@@ -724,6 +724,9 @@ class Client:
                 target_km = round(v['target_km_walked'] - v['start_km_walked'],3)
                 print 'INCUBATOR: {}/{}'.format(current_km, target_km)
 
+        for k,v in self.item.iteritems():
+            print "*%3d (%s) = %d" % (k, ItemId.Name(k), v)
+
         print "ITEM # =\n   ", self.profile['cnt_item']
         print 'POKEMON # =\n   ', self.profile['cnt_pokemon']
         print 'POSITION (lat,lng) = {},{}'.format(self._lat, self._lng)
