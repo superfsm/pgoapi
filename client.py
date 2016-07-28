@@ -141,7 +141,6 @@ class Client:
         self.profile['cnt_pokemon'] = 0
         self.profile['cnt_item'] = 0
 
-
         self.incubator = {}
         self.item = defaultdict(int)
         self.family = defaultdict(list)
@@ -160,9 +159,31 @@ class Client:
     def get_position(self):
         return (self._lat, self._lng)
 
+
+    @chain_api
+    def move_to_obj_catch(self, obj, speed = 40):
+        a = (self._lat, self._lng)
+        b = (obj['latitude'], obj['longitude'])
+
+        dist = great_circle(a, b).meters
+        steps = int(dist / speed) + 1
+
+        delta_lat = (obj['latitude'] - self._lat) / steps
+        delta_lng = (obj['longitude'] - self._lng) / steps
+
+        log.info('Moving ... %d steps' % steps)
+        for step in range(steps):
+            if step % 2 == 0:
+                self.scan()
+                for wild_pokemon in self.wild_pokemon:
+                    self.catch_pokemon(wild_pokemon)
+            self.jump_to(self._lat + delta_lat, self._lng + delta_lng)
+            log.info('-')
+            time.sleep(0.5)
+
     # Move to object
     @chain_api
-    def move_to_obj(self, obj, speed=30):
+    def move_to_obj(self, obj, speed=20):
         self.move_to(obj['latitude'], obj['longitude'], speed=speed)
 
     # Move to position at speed(m)/s
