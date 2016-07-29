@@ -368,6 +368,7 @@ class Client:
 
         # DISK_ENCOUNTER
         if 'DISK_ENCOUNTER' in responses:
+            print responses['DISK_ENCOUNTER']
             if responses['DISK_ENCOUNTER']['Result']:
                 log.info('DISK_ENCOUNTER = {}'.format(
                     DiskEncounterResponse.Status.Name(responses['DISK_ENCOUNTER']['Result'])))
@@ -866,7 +867,7 @@ class Client:
         encounter_id = lure_info['encounter_id']
         fort_id = lure_info['fort_id']
         self._disk_encounter(encounter_id, fort_id)
-        ret = self._call
+        ret = self._call()
         if ret[0]:
             max_cp = ret[1]
             family_id = ret[2]
@@ -973,8 +974,8 @@ class Client:
     # Spin the pokestop
     @chain_api
     def fort_search(self, pokestop):
-        if 'lure_info' in self.pokestop[pokestop['id']]:
-            self.disk_catch_pokemon(self.pokestop[pokestop['id']]['lure_info'])
+        # if 'lure_info' in self.pokestop[pokestop['id']]:
+        #     self.disk_catch_pokemon(self.pokestop[pokestop['id']]['lure_info'])
 
         self._api.fort_search(
             fort_id=pokestop['id'],
