@@ -32,6 +32,7 @@ import webbrowser
 import sys
 
 from client import Client
+from pgoapi.exceptions import NotLoggedInException
 
 from geopy.geocoders import GoogleV3
 from ortools.constraint_solver import pywrapcp
@@ -226,38 +227,38 @@ def main():
                 print 'Login failed, retry after 30s'
                 time.sleep(30)
                 continue
-        except:
+            client.jump_to(*position)
+            client.scan().summary().summary_pokemon()
+            # client.scan().bulk_evolve_pokemon()
+            if start_exp == 0:
+                start_exp = client.profile['experience']
+                start_pokemon = client.profile['pokemons_captured']
+                start_pokestop = client.profile['poke_stop_visits']
+
+            if evolve:
+                client.bulk_evolve_pokemon(dry=False)
+                for pokemon_id in evolve_list:
+                    client.manual_evolve_pokemon(pokemon_id, dry=False)
+            sorted_pokestops = TSP(client.get_pokestop()).solve()
+            if not map_showed:
+                show_map(sorted_pokestops, [])
+                map_showed = True
+            for pokestop in sorted_pokestops:
+                client.move_to_obj_catch(pokestop).fort_search(pokestop).status()
+
+                time_delta = time.time() - start_time
+                exp_delta = client.profile['experience'] - start_exp
+                print 'SEC = %d, POKEMON = %d, POKESTOP = %d, EFFICIENCY = %.2f Exp/Hour' % (
+                    time_delta,
+                    client.profile['pokemons_captured'] - start_pokemon,
+                    client.profile['poke_stop_visits'] - start_pokestop,
+                    float(exp_delta) / time_delta * 3600)
+        except NotLoggedInException:
             if auth_token is not None:
                 print 'Token login failed, use password'
                 auth_token = None
-                continue
-        client.jump_to(*position)
-        client.scan().summary().summary_pokemon()
-        # client.scan().bulk_evolve_pokemon()
-        if start_exp == 0:
-            start_exp = client.profile['experience']
-            start_pokemon = client.profile['pokemons_captured']
-            start_pokestop = client.profile['poke_stop_visits']
-
-        if evolve:
-            client.bulk_evolve_pokemon(dry=False)
-            for pokemon_id in evolve_list:
-                client.manual_evolve_pokemon(pokemon_id, dry=False)
-        sorted_pokestops = TSP(client.get_pokestop()).solve()
-        if not map_showed:
-            show_map(sorted_pokestops, [])
-            map_showed = True
-        for pokestop in sorted_pokestops:
-            client.move_to_obj_catch(pokestop).fort_search(pokestop).status()
-
-            time_delta = time.time() - start_time
-            exp_delta = client.profile['experience'] - start_exp
-            print 'SEC = %d, POKEMON = %d, POKESTOP = %d, EFFICIENCY = %.2f Exp/Hour' % (
-                time_delta,
-                client.profile['pokemons_captured'] - start_pokemon,
-                client.profile['poke_stop_visits'] - start_pokestop,
-                float(exp_delta) / time_delta * 3600)
-
+            print 'NotLoggedInException, continue'
+            continue
 
         print 'Loop finished, sleeping 30s'
         time.sleep(30)
