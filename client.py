@@ -37,7 +37,8 @@ from pgoapi.protos.POGOProtos.Inventory_pb2 import ItemId
 from pgoapi.protos.POGOProtos.Enums_pb2 import PokemonId
 from pgoapi.protos.POGOProtos.Networking.Responses_pb2 import (
     FortSearchResponse, EncounterResponse, CatchPokemonResponse, ReleasePokemonResponse,
-    RecycleInventoryItemResponse, UseItemEggIncubatorResponse, EvolvePokemonResponse)
+    RecycleInventoryItemResponse, UseItemEggIncubatorResponse, EvolvePokemonResponse,
+    NicknamePokemonResponse)
 
 from google.protobuf.internal import encoder
 from geopy.distance import great_circle
@@ -48,14 +49,10 @@ log = logging.getLogger(__name__)
 POKEMON_ID_MAX = 151
 CHEAP_LIST = []
 WORTH_LIST = []
-# CHEAP_LIST = [
-#     PokemonId.Value('PIDGEY'),
-#     PokemonId.Value('CATERPIE'),
-#     PokemonId.Value('WEEDLE'),
-#     PokemonId.Value('RATTATA'),
-#     PokemonId.Value('SPEAROW'),
-#     PokemonId.Value('ZUBAT'),
-#     PokemonId.Value('DODUO')]
+CHEAP_LIST = [
+    PokemonId.Value('CATERPIE'),
+    PokemonId.Value('WEEDLE'),
+    PokemonId.Value('PIDGEY')]
 
 # CHEAP_LIST += [
 #     PokemonId.Value('SANDSHREW'),
@@ -66,31 +63,31 @@ WORTH_LIST = []
 #     PokemonId.Value('KRABBY'),
 #     PokemonId.Value('HORSEA')]
 
-WORTH_LIST = [
-    PokemonId.Value('EEVEE'),
-    PokemonId.Value('SNORLAX'),
-    PokemonId.Value('DRATINI'),
-    PokemonId.Value('BULBASAUR'),
-    PokemonId.Value('CHARMANDER'),
-    PokemonId.Value('GROWLITHE'),
-    PokemonId.Value('ABRA'),
-    PokemonId.Value('GRIMER'),
-    PokemonId.Value('MAGIKARP'),
-    PokemonId.Value('LAPRAS'),
-    PokemonId.Value('Pidgey'),
-    PokemonId.Value('Pikachu'),
-    PokemonId.Value('Jigglypuff'),
-    PokemonId.Value('Poliwag'),
-    PokemonId.Value('Growlithe'),
-    PokemonId.Value('Geodude'),
-    PokemonId.Value('Gastly'),
-    PokemonId.Value('Exeggcute'),
-    PokemonId.Value('Mewtwo'),
-    PokemonId.Value('Mew'),
-    PokemonId.Value('Moltres'),
-    PokemonId.Value('Zapdos'),
-    PokemonId.Value('Articuno'),
-    PokemonId.Value('Mewtwo'),]
+# WORTH_LIST = [
+#     PokemonId.Value('EEVEE'),
+#     PokemonId.Value('SNORLAX'),
+#     PokemonId.Value('DRATINI'),
+#     PokemonId.Value('BULBASAUR'),
+#     PokemonId.Value('CHARMANDER'),
+#     PokemonId.Value('GROWLITHE'),
+#     PokemonId.Value('ABRA'),
+#     PokemonId.Value('GRIMER'),
+#     PokemonId.Value('MAGIKARP'),
+#     PokemonId.Value('LAPRAS'),
+#     PokemonId.Value('PIDGEY'),
+#     PokemonId.Value('PIKACHU'),
+#     PokemonId.Value('JIGGLYPUFF'),
+#     PokemonId.Value('POLIWAG'),
+#     PokemonId.Value('GROWLITHE'),
+#     PokemonId.Value('GEODUDE'),
+#     PokemonId.Value('GASTLY'),
+#     PokemonId.Value('EXEGGCUTE'),
+#     PokemonId.Value('MEWTWO'),
+#     PokemonId.Value('MEW'),
+#     PokemonId.Value('MOLTRES'),
+#     PokemonId.Value('ZAPDOS'),
+#     PokemonId.Value('ARTICUNO'),
+#     PokemonId.Value('MEWTWO')]
 
 
 class MyDict(dict):
@@ -437,6 +434,11 @@ class Client:
             log.info('USE_ITEM_EGG_INCUBATOR result = {}'.format(
                 UseItemEggIncubatorResponse.Result.Name(responses['USE_ITEM_EGG_INCUBATOR']['result'])))
 
+        # NICKNAME_POKEMON
+        if 'NICKNAME_POKEMON' in responses:
+            log.info('NICKNAME_POKEMON result = {}'.format(
+                NicknamePokemonResponse.Result.Name(responses['NICKNAME_POKEMON']['result'])))
+
     @chain_api
     def bulk_recycle_inventory_item(self):
 
@@ -504,13 +506,11 @@ class Client:
         log.info('RECYCLE_INVENTORY_ITEM {} = {}'.format(ItemId.Name(item_id), count))
         self._api.recycle_inventory_item(item_id=item_id, count=count)
         self._call()
+        time.sleep(0.5)
 
     def _calc_attr(self, pokemon):
         pokemon_id = pokemon['pokemon_id']
         pokemon['family_id'] = POKEDEX[pokemon_id]['family_id']
-
-        if pokemon_id in CHEAP_LIST:
-            pokemon['isKeep'] = True
 
         while POKEDEX[pokemon_id]['EvolvesTo']:
             pokemon_id = POKEDEX[POKEDEX[pokemon_id]['EvolvesTo']]['PkMn']
@@ -603,7 +603,7 @@ class Client:
         removed = 0
         for family_id in range(1, POKEMON_ID_MAX + 1):
             for pokemon in self.family[family_id]:
-                if not pokemon['isKeep']:
+                if not (pokemon['isKeepMax'] or pokemon_id['isKeepEvo'] or pokemon_id['isKeepCp']):
                     print pokemon['pokemon_id'], 'RELEASE_POKEMON max_cp =', pokemon['max_cp']
                     self.release_pokemon(pokemon['id'])
                     removed += 1
@@ -614,58 +614,23 @@ class Client:
         self._api.release_pokemon(pokemon_id=pokemon_id)
         self._call()
 
-
     @chain_api
-    def bulk_evolve_pokemon(self, dry = True):
+    def bulk_evolve_pokemon(self, dry=True):
 
+        self.summary_pokemon()
         cnt = 0
-        log.info('-----------------------CHEAP')
-        for pokemon_id in CHEAP_LIST:
-            for pokemon in self.family[pokemon_id]:
-                if pokemon['pokemon_id'] == pokemon_id:
+
+        for family_id in range(1, POKEMON_ID_MAX + 1):
+            if len(self.family[family_id]) == 0:
+                continue
+
+            for pokemon in self.family[family_id]:
+                if pokemon['isKeepEvo']:
+                    self.evolve_pokemon(pokemon, dry=dry)
                     cnt += 1
-                    self.evolve_pokemon(pokemon, dry)
-
-        # log.info('-----------------------SUCK CP')
-        # for family_id in range(1, POKEMON_ID_MAX + 1):
-        #     if len(self.family[pokemon_id]) == 0:
-        #         continue
-        #     if self.family[pokemon_id][0]['perfect_cp'] < 1500:
-        #         for pokemon in self.family[pokemon_id]:
-        #             if pokemon['pokemon_id'] == family_id:
-        #                 cnt += 1
-        #                 self.evolve_pokemon(pokemon, dry)
-
-        # log.info('-----------------------RICH')
-
-
-
-        # for family_id in range(1, POKEMON_ID_MAX + 1):
-        #     if len(self.family[pokemon_id]) == 0:
-        #         continue
-
-        #     candy_left = self.candy[family_id]
-        #     candy_needed = 200
-        #     pokemon_id = family_id
-        #     while POKEDEX[pokemon_id]['EvolvesTo']:
-        #         candy_needed += POKEDEX[pokemon_id]['CandyToEvolve']
-        #         pokemon_id = POKEDEX[POKEDEX[pokemon_id]['EvolvesTo']]['PkMn']
-        #     candy_needed *= 3
-        #     candy_needed += POKEDEX[pokemon_id]['CandyToEvolve'] * 3
-        #     candy_left -= candy_needed
-
-        #     self.family[family_id].sort(reverse=True, key=lambda p: p['evolve_cp'])
-        #     for pokemon in self.family[family_id]:
-        #         if pokemon['pokemon_id'] == family_id:
-        #             candy_left -= POKEDEX[family_id]['CandyToEvolve']
-        #             if candy_left < 0:
-        #                 break
-        #             else:
-        #                 cnt += 1
-        #                 self.evolve_pokemon(pokemon, dry)
 
         log.info('TOTAL EVOLVED = {}'.format(cnt))
-        log.info('TOTAL EXP = {}'.format(cnt*500))
+        log.info('TOTAL EXP = {} ({})'.format(cnt * 500, cnt * 1000))
 
     @chain_api
     def manual_evolve_pokemon(self, pokemon_id, dry=True):
@@ -678,10 +643,17 @@ class Client:
     @chain_api
     def evolve_pokemon(self, pokemon, dry=True):
         log.info('EVOLVE_POKEMON "%s" %d -> %d' % (pokemon['pokemon_id'], pokemon['cp'], pokemon['evolve_cp']))
+        if pokemon['pokemon_id'] == PokemonId.Value('EEVEE'):
+            self.nickname_pokemon(pokemon['id'], 'Rainer')
         if not dry:
             self._api.evolve_pokemon(pokemon_id=pokemon['id'])
             self._call()
             time.sleep(0.5)
+
+    @chain_api
+    def nickname_pokemon(self, pokemon_id, nickname):
+        self._api.nickname_pokemon(pokemon_id=pokemon_id, nickname=nickname)
+        self._call()
 
     @chain_api
     def status(self):
@@ -697,18 +669,19 @@ class Client:
     @chain_api
     def summary_pokemon(self):
 
-        MAX_FILTER = 3
-        EVOLVE_FILTER = 3
+        KEEP_CP = 1500
 
-        title =  ' ID      NAME         (CAND)| LEVEL  CURR -> [CND] +EVO -> [DUST, CANDY]  +UP-> [DUST, CANDY]  MAX / THEORY    %   | ATK DEF STA KEEP ID'
+        title =  ' ID      NAME         (CAND)| LEVEL  CURR -> [CND] +EVO -> [DUST, CANDY]  +UP-> [DUST, CANDY]  MAX / THEORY    %   | ATK DEF STA EVO/CP/MAX ID'
         line  =  '----------------------------------------------------------------------------------------------------------------------------------------'
 
         for family_id in range(1, POKEMON_ID_MAX + 1):
             for pokemon in self.family[family_id]:
                 self._calc_attr_detail(pokemon)
 
-        keep_cnt = 0
         release_cnt = 0
+        keep_cnt = 0
+        evo_cnt = 0
+        total_cnt = 0
 
         for family_id in range(1, POKEMON_ID_MAX + 1):
             if len(self.family[family_id]) == 0:
@@ -716,21 +689,38 @@ class Client:
 
             candy_left = self.candy[family_id]
 
-            self.family[family_id].sort(reverse=True, key=lambda p: p['max_cp'])
-            for pokemon in self.family[family_id][:MAX_FILTER]:
-                pokemon['isKeep'] = True
+            # self.family[family_id].sort(reverse=True, key=lambda p: p['max_cp'])
+            pokemon = max(self.family[family_id], key=lambda p: p['max_cp'])
+            pokemon['isKeepMax'] = True
+            _id = pokemon['id']
+            candy_left -= pokemon['candy_needed_max']
+
+            high_level = filter(lambda p: p['level'] >= self.profile['level'] - 5, self.family[family_id])
+            if len(high_level) > 0:
+                pokemon = max(high_level, key=lambda p: p['max_cp'])
+                pokemon['isKeepMax'] = True
+                if _id != pokemon['id']:
+                    candy_left -= pokemon['candy_needed_max']
+
             self.family[family_id].sort(reverse=True, key=lambda p: p['evolve_cp'])
-            for pokemon in self.family[family_id][:EVOLVE_FILTER]:
-                pokemon['isKeep'] = True
-            self.family[family_id].sort(reverse=True, key=lambda p: p['cp'])
-            self.family[family_id][0]['isKeep'] = True
             for pokemon in self.family[family_id]:
-                if pokemon['cp'] > 1500 or pokemon['evolve_cp'] > 1800:
-                    pokemon['isKeep'] = True
+                total_cnt += 1
+                if pokemon['cp'] > KEEP_CP:
+                    pokemon['isKeepCp'] = True
+
+                if family_id in CHEAP_LIST:     #Cheap
+                    if pokemon['pokemon_id'] == family_id:     # Base
+                        if candy_left > POKEDEX[family_id]['CandyToEvolve']:
+                            pokemon['isKeepEvo'] = True
+                            candy_left -= POKEDEX[family_id]['CandyToEvolve']
                 else:
-                    break
+                    if pokemon['candy_needed_evolve'] > 0:
+                        if candy_left > pokemon['candy_needed_evolve']:
+                            pokemon['isKeepEvo'] = True
+                            candy_left -= pokemon['candy_needed_evolve']
 
             print line
+            print family_id
             for pokemon in self.family[family_id]:
                 attack = 0
                 defense = 0
@@ -742,33 +732,51 @@ class Client:
                     defense = pokemon['individual_defense']
                 if pokemon['individual_stamina']:
                     stamina = pokemon['individual_stamina']
-                if pokemon['isKeep']:
-                    isKeep = '*'
+                if pokemon['isKeepMax']:
+                    isKeepMax = 'M'
+                else:
+                    isKeepMax = ''
+
+                if pokemon['isKeepEvo']:
+                    isKeepEvo = '*'
+                    evo_cnt += 1
+                else:
+                    isKeepEvo = ''
+
+                if pokemon['isKeepCp']:
+                    isKeepCp = 'C'
+                else:
+                    isKeepCp = ''
+
+                if pokemon['isKeepMax'] or pokemon['isKeepEvo']:
                     keep_cnt += 1
                 else:
-                    isKeep = ''
                     release_cnt += 1
 
                 pokemon_id = pokemon['pokemon_id']
-                print '#%03d  %-15s (%4d)| Lv%3g  %4d -> [%3d] %4d -> [%6d, %3d] %4d-> [%6d, %3d] %4d / %4d (%3d %% ) |  %2d  %2d  %2d %1s %s' % (
+                print '#%03d  %-15s (%4d)| Lv%3g  %4d -> [%3d] %4d -> [%6d, %3d] %4d-> [%6d, %3d] %4d / %4d (%3d %% ) |  %2d  %2d  %2d %01s%01s%01s %s' % (
                     pokemon_id, PokemonId.Name(pokemon_id), self.candy[family_id],
                     round(pokemon['level'], 1), pokemon['cp'],
                     pokemon['candy_needed_evolve'], pokemon['evolve_cp'],
                     pokemon['dust_needed_curr'], pokemon['candy_needed_curr'], pokemon['evolve_up_cp'],
                     pokemon['dust_needed_max'], pokemon['candy_needed_max'], pokemon['max_cp'],
                     pokemon['perfect_cp'], pokemon['pcp'] * 100,
-                    attack, defense, stamina, isKeep, pokemon['id'])
+                    attack, defense, stamina, isKeepEvo, isKeepCp, isKeepMax, pokemon['id'])
 
             print '# TOTAL = %d X [%d] = %d' % (
                 len(self.family[family_id]), POKEDEX[family_id]['CandyToEvolve'],
                 len(self.family[family_id]) * POKEDEX[family_id]['CandyToEvolve'])
+
         print line
         print title
+        print 'TOTAL =', total_cnt
         print 'KEEP =', keep_cnt
         print 'RELEASE =', release_cnt
+        print 'EVO =', evo_cnt
 
         if release_cnt == 0:
             print '============== pokemon full, nothing to release'
+            exit(0)
 
     @chain_api
     def summary(self):
