@@ -930,7 +930,7 @@ class Client:
                 encounter_id=encounter_id,
                 spawn_point_guid=spawn_point_id)
             if not self._call():
-                self.use_item_capture(pokemon)
+                self.use_item_capture(encounter_id, spawn_point_id)
         else:
             log.info('USE_ITEM_CAPTURE, out of berry :(')
 
