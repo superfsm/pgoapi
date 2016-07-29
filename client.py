@@ -38,7 +38,7 @@ from pgoapi.protos.POGOProtos.Enums_pb2 import PokemonId
 from pgoapi.protos.POGOProtos.Networking.Responses_pb2 import (
     FortSearchResponse, EncounterResponse, CatchPokemonResponse, ReleasePokemonResponse,
     RecycleInventoryItemResponse, UseItemEggIncubatorResponse, EvolvePokemonResponse,
-    NicknamePokemonResponse)
+    NicknamePokemonResponse,DiskEncounterResponse)
 
 from google.protobuf.internal import encoder
 from geopy.distance import great_circle
@@ -174,6 +174,7 @@ class Client:
 
         self.pokestop = {}
         self.wild_pokemon = []
+        self.cachable_pokemon = []
 
     def get_pokestop(self):
         return self.pokestop.values()
@@ -202,7 +203,6 @@ class Client:
                 self.scan()
                 for wild_pokemon in self.wild_pokemon:
                     self.catch_pokemon(wild_pokemon)
-                    time.sleep(0.5)
             self.jump_to(self._lat + delta_lat, self._lng + delta_lng)
             log.info('-')
             time.sleep(1)
@@ -253,6 +253,7 @@ class Client:
     # Send request and parse response
     def _call(self):
 
+        time.sleep(0.5)
         # Call api
         resp = self._api.call()
         log.debug('Response dictionary: \n\r{}'.format(
@@ -279,7 +280,21 @@ class Client:
 
             for wild_pokemon in map_cell['wild_pokemons']:
                 self.wild_pokemon.append(wild_pokemon)
-                # log.debug('POKEMON = {}'.format(wild_pokemon))
+            # for wild_pokemon in map_cell['cachable_pokemons']:
+            #     self.cachable_pokemon.append(wild_pokemon)
+
+        # if 'GET_MAP_OBJECTS' in responses:
+        #     print '---------------WILD'
+        #     for pokemon in self.wild_pokemon:
+        #         print pokemon['encounter_id'],pokemon['spawn_point_id']
+        #     print '---------------CACHABLE'
+        #     for pokemon in self.wild_pokemon:
+        #         print pokemon['encounter_id'],pokemon['spawn_point_id']
+
+        #     print '------------------------------LURE'
+        #     for _, pokestop in self.pokestop.iteritems():
+        #         if 'lure_info' in pokestop:
+        #             print pokestop
 
         # GET_HATCHED_EGGS
         # if 'GET_HATCHED_EGGS' in responses:
@@ -350,6 +365,29 @@ class Client:
 
             # Sort egg by km
             self.egg.sort(reverse=True, key=lambda e: e['egg_km_walked_target'])
+
+        # DISK_ENCOUNTER
+        if 'DISK_ENCOUNTER' in responses:
+            if responses['DISK_ENCOUNTER']['Result']:
+                log.info('DISK_ENCOUNTER = {}'.format(
+                    DiskEncounterResponse.Status.Name(responses['DISK_ENCOUNTER']['Result'])))
+            else:
+                log.warning('DISK_ENCOUNTER = {}')
+
+            if responses['DISK_ENCOUNTER']['Result'] == 1:
+                pokemon = responses['DISK_ENCOUNTER']['pokemon_data']
+                self._calc_attr(pokemon)
+                log.info('DISK_ENCOUNTER = "{}", PROB = {}'.format(
+                    PokemonId.Name(pokemon['pokemon_id']), responses['DISK_ENCOUNTER']['capture_probability']['capture_probability']))
+                # Bool, CP, ID
+                return (
+                    True,
+                    pokemon['max_cp'],
+                    pokemon['family_id'])
+            else:
+                if responses['DISK_ENCOUNTER']['Result'] == DiskEncounterResponse.Result.Value('POKEMON_INVENTORY_FULL'):
+                    self.bulk_release_pokemon()
+                return (False, )
 
         # ENCOUNTER
         if 'ENCOUNTER' in responses:
@@ -506,7 +544,6 @@ class Client:
         log.info('RECYCLE_INVENTORY_ITEM {} = {}'.format(ItemId.Name(item_id), count))
         self._api.recycle_inventory_item(item_id=item_id, count=count)
         self._call()
-        time.sleep(0.5)
 
     def _calc_attr(self, pokemon):
         pokemon_id = pokemon['pokemon_id']
@@ -603,11 +640,10 @@ class Client:
         removed = 0
         for family_id in range(1, POKEMON_ID_MAX + 1):
             for pokemon in self.family[family_id]:
-                if not (pokemon['isKeepMax'] or pokemon_id['isKeepEvo'] or pokemon_id['isKeepCp']):
+                if not (pokemon['isKeepMax'] or pokemon['isKeepEvo'] or pokemon['isKeepCp']):
                     print pokemon['pokemon_id'], 'RELEASE_POKEMON max_cp =', pokemon['max_cp']
                     self.release_pokemon(pokemon['id'])
                     removed += 1
-                    time.sleep(0.5)
 
     @chain_api
     def release_pokemon(self, pokemon_id):
@@ -638,7 +674,6 @@ class Client:
         if not dry:
             self._api.evolve_pokemon(pokemon_id=pokemon_id)
             self._call()
-            time.sleep(0.5)
 
     @chain_api
     def evolve_pokemon(self, pokemon, dry=True):
@@ -648,7 +683,6 @@ class Client:
         if not dry:
             self._api.evolve_pokemon(pokemon_id=pokemon['id'])
             self._call()
-            time.sleep(0.5)
 
     @chain_api
     def nickname_pokemon(self, pokemon_id, nickname):
@@ -811,6 +845,7 @@ class Client:
     def scan(self):
 
         self.wild_pokemon = []
+        self.cachable_pokemon = []
 
         cell_ids = self._get_cell_ids()
         timestamps = [0, ] * len(cell_ids)
@@ -827,21 +862,31 @@ class Client:
         self.use_item_egg_incubator()
 
     @chain_api
+    def disk_catch_pokemon(self, lure_info):
+        encounter_id = lure_info['encounter_id']
+        fort_id = lure_info['fort_id']
+        self._disk_encounter(encounter_id, fort_id)
+        ret = self._call
+        if ret[0]:
+            max_cp = ret[1]
+            family_id = ret[2]
+            self._choose_ball_and_catch(max_cp, family_id, encounter_id, fort_id)
+
+    @chain_api
     def catch_pokemon(self, pokemon):
 
         self._encounter(pokemon)
         ret = self._call()
         if ret[0]:
-
             max_cp = ret[1]
             family_id = ret[2]
+            self._choose_ball_and_catch(max_cp, family_id, pokemon['encounter_id'], pokemon['spawn_point_id'])
 
+    def _choose_ball_and_catch(self, max_cp, family_id, encounter_id, spawn_point_id):
             ret = -1
             while ret == -1 or ret == 2 or ret == 4:
-                if ret == 2 or ret == 4:
-                    time.sleep(1)
                 if len(self.family[family_id]) == 0 or self.candy[family_id] < 50 or max_cp > 2500:
-                    self.use_item_capture(pokemon)
+                    self.use_item_capture(encounter_id, spawn_point_id)
                     if self.item[ItemId.Value('ITEM_ULTRA_BALL')] > 0:
                         pokeball = ItemId.Value('ITEM_ULTRA_BALL')
                     elif self.item[ItemId.Value('ITEM_GREAT_BALL')] > 0:
@@ -853,7 +898,7 @@ class Client:
                         return
                 else:
                     if self.item[ItemId.Value('ITEM_RAZZ_BERRY')] > 30:
-                        self.use_item_capture(pokemon)
+                        self.use_item_capture(encounter_id, spawn_point_id)
 
                     cnt_poke_ball = self.item[ItemId.Value('ITEM_POKE_BALL')]
                     cnt_great_ball = self.item[ItemId.Value('ITEM_GREAT_BALL')]
@@ -873,21 +918,27 @@ class Client:
                         log.warning('CATCH_POKEMON no balls!')
                         return
 
-                self._catch_pokemon(pokeball, pokemon)
+                self._catch_pokemon(pokeball, encounter_id, spawn_point_id)
                 ret = self._call()
 
     @chain_api
-    def use_item_capture(self, pokemon):
+    def use_item_capture(self, encounter_id, spawn_point_id):
         if self.item[ItemId.Value('ITEM_RAZZ_BERRY')] > 0:
             self._api.use_item_capture(
                 item_id=ItemId.Value('ITEM_RAZZ_BERRY'),
-                encounter_id=pokemon['encounter_id'],
-                spawn_point_guid=pokemon['spawn_point_id'])
+                encounter_id=encounter_id,
+                spawn_point_guid=spawn_point_id)
             if not self._call():
-                time.sleep(1)
                 self.use_item_capture(pokemon)
         else:
             log.info('USE_ITEM_CAPTURE, out of berry :(')
+
+    def _disk_encounter(self, encounter_id, fort_id):
+        self._api.disk_encounter(
+            encounter_id=encounter_id,
+            fort_id=fort_id,
+            player_latitude=self._lat,
+            player_longitude=self._lng)
 
     def _encounter(self, pokemon):
         self._api.encounter(
@@ -896,12 +947,12 @@ class Client:
             player_latitude=self._lat,
             player_longitude=self._lng)
 
-    def _catch_pokemon(self, pokeball, pokemon):
+    def _catch_pokemon(self, pokeball, encounter_id, spawn_point_id):
         self._api.catch_pokemon(
-            encounter_id=pokemon['encounter_id'],
+            encounter_id=encounter_id,
             pokeball=pokeball,
             normalized_reticle_size=1.950,
-            spawn_point_id=pokemon['spawn_point_id'],
+            spawn_point_id=spawn_point_id,
             hit_pokemon=True,
             spin_modifier=1,
             normalized_hit_position=1)
@@ -922,6 +973,9 @@ class Client:
     # Spin the pokestop
     @chain_api
     def fort_search(self, pokestop):
+        if 'lure_info' in self.pokestop[pokestop['id']]:
+            self.disk_catch_pokemon(self.pokestop[pokestop['id']]['lure_info'])
+
         self._api.fort_search(
             fort_id=pokestop['id'],
             fort_latitude=pokestop['latitude'],
