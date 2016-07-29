@@ -256,7 +256,7 @@ class Client:
     # Send request and parse response
     def _call(self):
 
-        time.sleep(0.5)
+        time.sleep(0.2)
         # Call api
         resp = self._api.call()
         log.debug('Response dictionary: \n\r{}'.format(
@@ -485,7 +485,7 @@ class Client:
         # USE_ITEM_XP_BOOST
         if 'USE_ITEM_XP_BOOST' in responses:
             log.info('USE_ITEM_XP_BOOST result = {}'.format(
-                UseItemXpBoostResponse.Result.Name(esponses['USE_ITEM_XP_BOOST']['result'])))
+                UseItemXpBoostResponse.Result.Name(responses['USE_ITEM_XP_BOOST']['result'])))
 
     @chain_api
     def bulk_recycle_inventory_item(self):
@@ -654,10 +654,7 @@ class Client:
                     print pokemon['pokemon_id'], 'RELEASE_POKEMON max_cp =', pokemon['max_cp']
                     removed += 1
                     self._release_pokemon(pokemon['id'])
-                    if removed % 5 == 0:
-                        self._call()
-        if removed != 0:
-            self._call()
+                    self._call()
 
     @chain_api
     def _release_pokemon(self, pokemon_id):
@@ -666,7 +663,8 @@ class Client:
     @chain_api
     def bulk_evolve_pokemon(self, dry=True):
 
-        self.summary_pokemon()
+        self.summary_pokemon(block_on_full=False)
+
         cnt = 0
 
         for family_id in range(1, POKEMON_ID_MAX + 1):
@@ -690,21 +688,23 @@ class Client:
 
     @chain_api
     def evolve_pokemon(self, pokemon, dry=True):
-        log.info('EVOLVE_POKEMON "%s" %d -> %d' % (pokemon['pokemon_id'], pokemon['cp'], pokemon['evolve_cp']))
+        log.info('EVOLVE_POKEMON "%s" %d -> %d' % (PokemonId.Name(pokemon['pokemon_id']), pokemon['cp'], pokemon['evolve_cp']))
         if pokemon['pokemon_id'] == PokemonId.Value('EEVEE'):
-            self.nickname_pokemon(pokemon['id'], 'Rainer')
+            if ('nickname' not in pokemon) or (pokemon['nickname'] != 'Rainer'):
+                self.nickname_pokemon(pokemon['id'], 'Rainer')
         if not dry:
             self._api.evolve_pokemon(pokemon_id=pokemon['id'])
             self._call()
 
     @chain_api
-    def UseItemXpBoostMessage(self):
+    def use_item_xp_boost(self):
         log.info('USE_ITEM_XP_BOOST')
         self._api.use_item_xp_boost(item_id=ItemId.Value('ITEM_LUCKY_EGG'))
         self._call()
 
     @chain_api
     def nickname_pokemon(self, pokemon_id, nickname):
+        log.info('RENAME to ' + nickname)
         self._api.nickname_pokemon(pokemon_id=pokemon_id, nickname=nickname)
         self._call()
 
@@ -720,7 +720,7 @@ class Client:
             self.profile['cnt_pokemon'], self.profile['max_pokemon_storage'])
 
     @chain_api
-    def summary_pokemon(self):
+    def summary_pokemon(self, block_on_full=True):
 
         KEEP_CP = 1500
 
@@ -748,7 +748,7 @@ class Client:
             _id = pokemon['id']
             candy_left -= pokemon['candy_needed_max']
 
-            high_level = filter(lambda p: p['level'] >= self.profile['level'] - 5, self.family[family_id])
+            high_level = filter(lambda p: p['level'] >= 25, self.family[family_id])
             if len(high_level) > 0:
                 pokemon = max(high_level, key=lambda p: p['max_cp'])
                 pokemon['isKeepMax'] = True
@@ -827,7 +827,7 @@ class Client:
         print 'RELEASE =', release_cnt
         print 'EVO =', evo_cnt
 
-        if release_cnt == 0:
+        if total_cnt == self.profile['max_pokemon_storage'] - len(self.egg) and block_on_full:
             print '============== pokemon full, nothing to release'
             exit(0)
 

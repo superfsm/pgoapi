@@ -229,7 +229,9 @@ def main():
                 continue
             client.jump_to(*position)
             client.scan().summary().summary_pokemon()
-            # client.scan().bulk_evolve_pokemon()
+            # client.use_item_xp_boost()
+            # client.scan().bulk_release_pokemon()
+            # client.scan().bulk_evolve_pokemon(dry=False)
             if start_exp == 0:
                 start_exp = client.profile['experience']
                 start_pokemon = client.profile['pokemons_captured']
