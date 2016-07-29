@@ -104,7 +104,7 @@ class MyDict(dict):
 with open('data/GAME_MASTER_POKEMON.tsv') as tsv:
     lines = [line for line in csv.reader(tsv, delimiter="\t")]
     POKEDEX = {}
-    for idx in range(1,POKEMON_ID_MAX+1):
+    for idx in range(1, POKEMON_ID_MAX + 1):
         POKE = {}
         for idx_k in range(len(lines[0])):
             try:
@@ -117,7 +117,7 @@ with open('data/GAME_MASTER_POKEMON.tsv') as tsv:
     POKEDEX[133]['EvolvesTo'] = 'Vaporeon'
 
     # Family id
-    for pokemon_id in range(1,POKEMON_ID_MAX+1):
+    for pokemon_id in range(1, POKEMON_ID_MAX + 1):
         family_id = pokemon_id
         while POKEDEX[family_id]['EvolvesFrom']:
             family_id = POKEDEX[POKEDEX[family_id]['EvolvesFrom']]['PkMn']
@@ -137,20 +137,23 @@ with open('data/level-to-dust.json') as f:
         LEVEL_TO_DUST[float(lv)] = dust
     del tmp
 
+
 def chain_api(func):
     def wrapper(self, *args, **kwargs):
         func(self, *args, **kwargs)
         return self
     return wrapper
 
+
 def timing(func):
     def wrapper(self, *args, **kwargs):
-        startTime = int(round(time.time() * 1000))
+        start_time = int(round(time.time() * 1000))
         func(self, *args, **kwargs)
-        endTime = int(round(time.time() * 1000))
-        print("###", endTime - startTime, 'ms')
+        end_time = int(round(time.time() * 1000))
+        print("###", end_time - start_time, 'ms')
         return self
     return wrapper
+
 
 class Client:
 
@@ -185,9 +188,8 @@ class Client:
     def get_position(self):
         return (self._lat, self._lng)
 
-
     @chain_api
-    def move_to_obj_catch(self, obj, speed = 40):
+    def move_to_obj_catch(self, obj, speed=40):
         a = (self._lat, self._lng)
         b = (obj['latitude'], obj['longitude'])
 
@@ -203,7 +205,7 @@ class Client:
                 self.scan()
                 for wild_pokemon in self.wild_pokemon:
                     self.catch_pokemon(wild_pokemon)
-            time_prev = time.time()
+            # time_prev = time.time()
             self.jump_to(self._lat + delta_lat, self._lng + delta_lng)
             log.info('-')
             time.sleep(1)
@@ -265,7 +267,7 @@ class Client:
 
         responses = MyDict(resp)['responses']
 
-         # GET_PLAYER
+        # GET_PLAYER
         if responses['GET_PLAYER']['success'] is True:
             self.profile.update(responses['GET_PLAYER']['player_data'])
 
@@ -304,7 +306,8 @@ class Client:
         #             log.info('GET_HATCHED_EGGS exp = {}'.format(
         #                 responses['GET_HATCHED_EGGS']['experience_awarded']))
         #     else:
-        #         log.warning('GET_HATCHED_EGGS {}'.format(responses['GET_HATCHED_EGGS']['success']))
+        #         log.warning('GET_HATCHED_EGGS {}'.format(
+        #                       responses['GET_HATCHED_EGGS']['success']))
 
         # FORT_SEARCH
         if responses['FORT_SEARCH']:
@@ -798,7 +801,7 @@ class Client:
                 else:
                     isKeepCp = ''
 
-                if pokemon['isKeepMax'] or pokemon['isKeepEvo']:
+                if pokemon['isKeepMax'] or pokemon['isKeepEvo'] or pokemon['isKeepCp']:
                     keep_cnt += 1
                 else:
                     release_cnt += 1
@@ -978,7 +981,7 @@ class Client:
         for _, incubator in self.incubator.iteritems():
             if 'pokemon_id' not in incubator:
                 for egg in self.egg:
-                    if ('egg_incubator_id' not in egg) and (egg['egg_km_walked_target'] == 10 or incubator['item_id'] == ItemId.Value('ITEM_INCUBATOR_BASIC_UNLIMITED')):
+                    if 'egg_incubator_id' not in egg:
                         self._use_item_egg_incubator(incubator['id'], egg['id'])
                         self._call()
                         break
