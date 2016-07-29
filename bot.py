@@ -220,11 +220,15 @@ def main():
     while True:
         client = Client()
         if not client.login(str(config.auth_service), str(config.username), str(config.password), auth_token=auth_token):
+            if auth_token is not None:
+                print 'Token login failed, use password'
+                continue
             print 'Login failed, retry after 30s'
             time.sleep(30)
             continue
         client.jump_to(*position)
         client.scan().summary().summary_pokemon()
+        exit(1)
         if start_exp == 0:
             start_exp = client.profile['experience']
 

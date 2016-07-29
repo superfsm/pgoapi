@@ -47,6 +47,7 @@ log = logging.getLogger(__name__)
 
 POKEMON_ID_MAX = 151
 CHEAP_LIST = []
+WORTH_LIST = []
 # CHEAP_LIST = [
 #     PokemonId.Value('PIDGEY'),
 #     PokemonId.Value('CATERPIE'),
@@ -64,6 +65,33 @@ CHEAP_LIST = []
 #     PokemonId.Value('MANKEY'),
 #     PokemonId.Value('KRABBY'),
 #     PokemonId.Value('HORSEA')]
+
+WORTH_LIST = [
+    PokemonId.Value('EEVEE'),
+    PokemonId.Value('SNORLAX'),
+    PokemonId.Value('DRATINI'),
+    PokemonId.Value('BULBASAUR'),
+    PokemonId.Value('CHARMANDER'),
+    PokemonId.Value('GROWLITHE'),
+    PokemonId.Value('ABRA'),
+    PokemonId.Value('GRIMER'),
+    PokemonId.Value('MAGIKARP'),
+    PokemonId.Value('LAPRAS'),
+    PokemonId.Value('Pidgey'),
+    PokemonId.Value('Pikachu'),
+    PokemonId.Value('Jigglypuff'),
+    PokemonId.Value('Poliwag'),
+    PokemonId.Value('Growlithe'),
+    PokemonId.Value('Geodude'),
+    PokemonId.Value('Gastly'),
+    PokemonId.Value('Exeggcute'),
+    PokemonId.Value('Mewtwo'),
+    PokemonId.Value('Mew'),
+    PokemonId.Value('Moltres'),
+    PokemonId.Value('Zapdos'),
+    PokemonId.Value('Articuno'),
+    PokemonId.Value('Mewtwo'),]
+
 
 class MyDict(dict):
 
