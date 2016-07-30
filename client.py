@@ -731,12 +731,13 @@ class Client:
 
             candy_left = self.candy[family_id]
 
-            # self.family[family_id].sort(reverse=True, key=lambda p: p['max_cp'])
+            # Keep Max CP
             pokemon = max(self.family[family_id], key=lambda p: p['max_cp'])
             pokemon['isKeepMax'] = True
             _id = pokemon['id']
             candy_left -= pokemon['candy_needed_max']
 
+            # Keep Max CP (Lv >= 25)
             high_level = filter(lambda p: p['level'] >= 25, self.family[family_id])
             if len(high_level) > 0:
                 pokemon = max(high_level, key=lambda p: p['max_cp'])
@@ -747,16 +748,18 @@ class Client:
             self.family[family_id].sort(reverse=True, key=lambda p: p['evolve_cp'])
             for pokemon in self.family[family_id]:
                 total_cnt += 1
+
+                # Keep High CP
                 if pokemon['cp'] > KEEP_CP:
                     pokemon['isKeepCp'] = True
 
-                if family_id in CHEAP_LIST:     #Cheap
-                    if pokemon['pokemon_id'] == family_id:     # Base
+                if family_id in CHEAP_LIST: # CHECP
+                    if pokemon['pokemon_id'] == family_id:  # Evolve Base Form Only
                         if candy_left > POKEDEX[family_id]['CandyToEvolve']:
                             pokemon['isKeepEvo'] = True
                             candy_left -= POKEDEX[family_id]['CandyToEvolve']
                 else:
-                    if pokemon['candy_needed_evolve'] > 0:
+                    if pokemon['candy_needed_evolve'] > 0:  # Evolve
                         if candy_left > pokemon['candy_needed_evolve']:
                             pokemon['isKeepEvo'] = True
                             candy_left -= pokemon['candy_needed_evolve']
@@ -891,7 +894,7 @@ class Client:
     def _choose_ball_and_catch(self, max_cp, family_id, encounter_id, spawn_point_id):
             ret = -1
             while ret == -1 or ret == 2 or ret == 4:
-                if len(self.family[family_id]) == 0 or self.candy[family_id] < 50 or max_cp > 2500:
+                if len(self.family[family_id]) == 0 or self.candy[family_id] < 200 or max_cp > 2500:
                     self.use_item_capture(encounter_id, spawn_point_id)
                     if self.item[ItemId.Value('ITEM_ULTRA_BALL')] > 0:
                         pokeball = ItemId.Value('ITEM_ULTRA_BALL')
