@@ -261,6 +261,9 @@ def main():
                 auth_token = None
             print 'NotLoggedInException, continue'
             continue
+        except:
+            print "Exeption:", sys.exc_info()[0]
+            continue
 
         print 'Loop finished, sleeping 30s'
         time.sleep(30)
