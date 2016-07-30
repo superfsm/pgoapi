@@ -159,6 +159,7 @@ class Client:
 
     def __init__(self):
         self._api = PGoApi()
+        self._req = self._api.create_request()
 
         self._lat = 0
         self._lng = 0
@@ -217,7 +218,7 @@ class Client:
     def fort_search(self, pokestop):
         if 'lure_info' in self.pokestop[pokestop['id']]:
             self.disk_catch_pokemon(self.pokestop[pokestop['id']]['lure_info'])
-        self._api.fort_search(
+        self._req.fort_search(
             fort_id=pokestop['id'],
             fort_latitude=pokestop['latitude'],
             fort_longitude=pokestop['longitude'],
@@ -256,7 +257,8 @@ class Client:
     def jump_to(self, lat, lng, alt=0):
         log.debug('Move to - Lat: %s Long: %s Alt: %s', lat, lng, alt)
 
-        self._api.set_position(lat, lng, 0)
+        self._api.set_position(lat, lng, alt)
+        self._req.set_position(lat, lng, alt)
 
         self._lat = lat
         self._lng = lng
@@ -273,7 +275,9 @@ class Client:
 
         time.sleep(0.33)
         # Call api
-        resp = self._api.call()
+        resp = self._req.call()
+        self._req = self._api.create_request()
+        self._req.set_position(self._lat, self._lng, self._alt)
         log.debug('Response dictionary: \n\r{}'.format(
             pprint.PrettyPrinter(indent=2, width=3).pformat(resp)))
 
@@ -542,7 +546,7 @@ class Client:
     @chain_api
     def _recycle_inventory_item(self, item_id, count):
         log.info('RECYCLE_INVENTORY_ITEM {} = {}'.format(ItemId.Name(item_id), count))
-        self._api.recycle_inventory_item(item_id=item_id, count=count)
+        self._req.recycle_inventory_item(item_id=item_id, count=count)
 
     def _calc_attr(self, pokemon):
         pokemon_id = pokemon['pokemon_id']
@@ -647,7 +651,7 @@ class Client:
 
     @chain_api
     def _release_pokemon(self, pokemon_id):
-        self._api.release_pokemon(pokemon_id=pokemon_id)
+        self._req.release_pokemon(pokemon_id=pokemon_id)
 
     @chain_api
     def bulk_evolve_pokemon(self, dry=True):
@@ -672,7 +676,7 @@ class Client:
     def manual_evolve_pokemon(self, pokemon_id, dry=True):
         log.info('MANUAL EVOLVE_POKEMON "%d"' % (pokemon_id))
         if not dry:
-            self._api.evolve_pokemon(pokemon_id=pokemon_id)
+            self._req.evolve_pokemon(pokemon_id=pokemon_id)
             self._call()
 
     @chain_api
@@ -682,19 +686,19 @@ class Client:
             if ('nickname' not in pokemon) or (pokemon['nickname'] != 'Rainer'):
                 self.nickname_pokemon(pokemon['id'], 'Rainer')
         if not dry:
-            self._api.evolve_pokemon(pokemon_id=pokemon['id'])
+            self._req.evolve_pokemon(pokemon_id=pokemon['id'])
             self._call()
 
     @chain_api
     def use_item_xp_boost(self):
         log.info('USE_ITEM_XP_BOOST')
-        self._api.use_item_xp_boost(item_id=ItemId.Value('ITEM_LUCKY_EGG'))
+        self._req.use_item_xp_boost(item_id=ItemId.Value('ITEM_LUCKY_EGG'))
         self._call()
 
     @chain_api
     def nickname_pokemon(self, pokemon_id, nickname):
         log.info('RENAME to ' + nickname)
-        self._api.nickname_pokemon(pokemon_id=pokemon_id, nickname=nickname)
+        self._req.nickname_pokemon(pokemon_id=pokemon_id, nickname=nickname)
         self._call()
 
     @chain_api
@@ -861,7 +865,7 @@ class Client:
         self._get_player()
         self._get_inventory()
         self._get_hatched_eggs()
-        self._api.get_map_objects(
+        self._req.get_map_objects(
             latitude=self._lat,
             longitude=self._lng,
             since_timestamp_ms=timestamps,
@@ -933,7 +937,7 @@ class Client:
     @chain_api
     def use_item_capture(self, encounter_id, spawn_point_id):
         if self.item[ItemId.Value('ITEM_RAZZ_BERRY')] > 0:
-            self._api.use_item_capture(
+            self._req.use_item_capture(
                 item_id=ItemId.Value('ITEM_RAZZ_BERRY'),
                 encounter_id=encounter_id,
                 spawn_point_guid=spawn_point_id)
@@ -943,21 +947,21 @@ class Client:
             log.info('USE_ITEM_CAPTURE, out of berry :(')
 
     def _disk_encounter(self, encounter_id, fort_id):
-        self._api.disk_encounter(
+        self._req.disk_encounter(
             encounter_id=encounter_id,
             fort_id=fort_id,
             player_latitude=self._lat,
             player_longitude=self._lng)
 
     def _encounter(self, pokemon):
-        self._api.encounter(
+        self._req.encounter(
             encounter_id=pokemon['encounter_id'],
             spawn_point_id=pokemon['spawn_point_id'],
             player_latitude=self._lat,
             player_longitude=self._lng)
 
     def _catch_pokemon(self, pokeball, encounter_id, spawn_point_id):
-        self._api.catch_pokemon(
+        self._req.catch_pokemon(
             encounter_id=encounter_id,
             pokeball=pokeball,
             normalized_reticle_size=1.950,
@@ -977,26 +981,29 @@ class Client:
                         break
 
     def _use_item_egg_incubator(self, item_id, pokemon_id):
-        self._api.use_item_egg_incubator(item_id=item_id, pokemon_id=pokemon_id)
+        self._req.use_item_egg_incubator(item_id=item_id, pokemon_id=pokemon_id)
 
     # Login
     def login(self, auth_service, username, password, auth_token=None):
-        ret = self._api.login(auth_service, username, password, auth_token=auth_token)
+        ret = self._api.login(
+            auth_service, username, password,
+
+            app_simulation=False, auth_token=auth_token)
         if ret:
             self.scan()
         return ret
 
     def test(self):
-        self._api.get_player()
-        self._api.get_inventory()
-        resp = self._api._call()
+        self._req.get_player()
+        self._req.get_inventory()
+        resp = self._req._call()
         log.info('Response dictionary: \n\r{}'.format(json.dumps(resp, indent=2)))
 
     def _get_player(self):
-        self._api.get_player()
+        self._req.get_player()
 
     def _get_hatched_eggs(self):
-        self._api.get_hatched_eggs()
+        self._req.get_hatched_eggs()
 
     def _get_inventory(self):
         self.egg = []
@@ -1006,7 +1013,7 @@ class Client:
         self.family = defaultdict(list)
         self.candy = defaultdict(int)
         self.item = defaultdict(int)
-        self._api.get_inventory()
+        self._req.get_inventory()
 
     def _get_cell_ids(self, radius=10):
         lat = self._lat

@@ -23,6 +23,8 @@ OR OTHER DEALINGS IN THE SOFTWARE.
 Author: tjado <https://github.com/tejado>
 """
 
+import re
+import time
 import struct
 import logging
 
@@ -85,3 +87,16 @@ def get_cell_ids(lat, long, radius = 10):
 
     # Return everything
     return sorted(walk)
+
+def get_time_ms():
+    return int(round(time.time() * 1000))
+
+def get_format_time_diff(low, high, ms = True):
+    diff = (high - low)
+    if ms:
+        m, s = divmod(diff / 1000, 60)
+    else:
+        m, s = divmod(diff, 60)
+    h, m = divmod(m, 60)
+    
+    return (h, m, s)

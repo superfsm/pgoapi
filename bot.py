@@ -222,12 +222,12 @@ def main():
     map_showed = False
     while True:
         client = Client()
+        client.jump_to(*position)
         try:
             if not client.login(str(config.auth_service), str(config.username), str(config.password), auth_token=auth_token):
                 print 'Login failed, retry after 30s'
                 time.sleep(30)
                 continue
-            client.jump_to(*position)
             client.scan().summary().summary_pokemon()
             # client.use_item_xp_boost()
             # client.scan().bulk_release_pokemon()
