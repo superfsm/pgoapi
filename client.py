@@ -897,7 +897,7 @@ class Client:
 
     def _choose_ball_and_catch(self, max_cp, family_id, encounter_id, spawn_point_id):
             ret = -1
-            for _ in range(10)
+            for _ in range(10):
                 if ret == -1 or ret == 2 or ret == 4:
                     if len(self.family[family_id]) == 0 or self.candy[family_id] < 200 or max_cp > 2500:
                         self.use_item_capture(encounter_id, spawn_point_id)
