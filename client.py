@@ -715,7 +715,7 @@ class Client:
     @chain_api
     def summary_pokemon(self, block_on_full=True):
 
-        KEEP_CP = 1500
+        KEEP_CP = 1700
 
         title =  ' ID      NAME         (CAND)| LEVEL  CURR -> [CND] +EVO -> [DUST, CANDY]  +UP-> [DUST, CANDY]  MAX / THEORY    %   | ATK DEF STA EVO/CP/MAX ID'
         line  =  '----------------------------------------------------------------------------------------------------------------------------------------'
