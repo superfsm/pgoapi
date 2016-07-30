@@ -163,6 +163,7 @@ class Client:
         self._lat = 0
         self._lng = 0
         self._alt = 0
+        self.step = 0
 
         self.profile = {}
         self.profile['level'] = 1
@@ -188,26 +189,41 @@ class Client:
         return (self._lat, self._lng)
 
     @chain_api
-    def move_to_obj_catch(self, obj, speed=40):
+    def move_to_pokestop_catch(self, pokestop, speed=40):
         a = (self._lat, self._lng)
-        b = (obj['latitude'], obj['longitude'])
+        b = (pokestop['latitude'], pokestop['longitude'])
 
         dist = great_circle(a, b).meters
-        steps = int(dist / speed) + 1
+        steps = int(dist / speed)
 
-        delta_lat = (obj['latitude'] - self._lat) / steps
-        delta_lng = (obj['longitude'] - self._lng) / steps
+        if steps != 0:
+            delta_lat = (pokestop['latitude'] - self._lat) / steps
+            delta_lng = (pokestop['longitude'] - self._lng) / steps
 
-        log.info('Moving ... %d steps' % steps)
-        for step in range(steps):
-            if step % 2 == 0:
-                self.scan()
-                for wild_pokemon in self.wild_pokemon:
-                    self.catch_pokemon(wild_pokemon)
-            # time_prev = time.time()
-            self.jump_to(self._lat + delta_lat, self._lng + delta_lng)
-            log.info('-')
-            time.sleep(1)
+            log.info('Moving ... %d steps' % steps)
+            for _ in range(steps):
+                self.step += 1
+                if self.step % 2 == 0:
+                    self.scan()
+                    for wild_pokemon in self.wild_pokemon:
+                        self.catch_pokemon(wild_pokemon)
+                self.jump_to(self._lat + delta_lat, self._lng + delta_lng)
+                log.info('-')
+                time.sleep(1)
+        self.fort_search(pokestop)
+
+    # Spin the pokestop
+    @chain_api
+    def fort_search(self, pokestop):
+        if 'lure_info' in self.pokestop[pokestop['id']]:
+            self.disk_catch_pokemon(self.pokestop[pokestop['id']]['lure_info'])
+        self._api.fort_search(
+            fort_id=pokestop['id'],
+            fort_latitude=pokestop['latitude'],
+            fort_longitude=pokestop['longitude'],
+            player_latitude=self._lat,
+            player_longitude=self._lng)
+        self._call()
 
     # Move to object
     @chain_api
@@ -835,9 +851,8 @@ class Client:
     # Scan the map around you
     @chain_api
     def scan(self):
-
+        self.use_item_egg_incubator()
         self.wild_pokemon = []
-
         cell_ids = self._get_cell_ids()
         timestamps = [0, ] * len(cell_ids)
         self._get_player()
@@ -849,8 +864,6 @@ class Client:
             since_timestamp_ms=timestamps,
             cell_id=cell_ids)
         self._call()
-
-        self.use_item_egg_incubator()
 
     @chain_api
     def disk_catch_pokemon(self, lure_info):
@@ -962,20 +975,6 @@ class Client:
 
     def _use_item_egg_incubator(self, item_id, pokemon_id):
         self._api.use_item_egg_incubator(item_id=item_id, pokemon_id=pokemon_id)
-
-    # Spin the pokestop
-    @chain_api
-    def fort_search(self, pokestop):
-        if 'lure_info' in self.pokestop[pokestop['id']]:
-            self.disk_catch_pokemon(self.pokestop[pokestop['id']]['lure_info'])
-
-        self._api.fort_search(
-            fort_id=pokestop['id'],
-            fort_latitude=pokestop['latitude'],
-            fort_longitude=pokestop['longitude'],
-            player_latitude=self._lat,
-            player_longitude=self._lng)
-        self._call()
 
     # Login
     def login(self, auth_service, username, password, auth_token=None):

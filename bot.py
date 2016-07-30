@@ -246,7 +246,7 @@ def main():
                 show_map(sorted_pokestops, [])
                 map_showed = True
             for pokestop in sorted_pokestops:
-                client.move_to_obj_catch(pokestop).fort_search(pokestop).status()
+                client.move_to_pokestop_catch(pokestop).status()
 
                 time_delta = time.time() - start_time
                 exp_delta = client.profile['experience'] - start_exp
