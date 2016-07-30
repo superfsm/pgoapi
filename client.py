@@ -273,7 +273,7 @@ class Client:
     # Send request and parse response
     def _call(self):
 
-        time.sleep(0.33)
+        time.sleep(0.34)
         # Call api
         resp = self._req.call()
         self._req = self._api.create_request()
@@ -349,11 +349,11 @@ class Client:
                     self.egg.append(pokemon)
 
                 # Candy
-                pokemon_family = inventory_item['inventory_item_data']['pokemon_family']
-                candy = pokemon_family['candy']
-                family_id = pokemon_family['family_id']
-                if candy and family_id:
-                    self.candy[family_id] = candy
+                candy = inventory_item['inventory_item_data']['candy']
+                family_id = candy['family_id']
+                count = candy['candy']
+                if count and family_id:
+                    self.candy[family_id] = count
 
                 # Incubators
                 egg_incubators = inventory_item['inventory_item_data']['egg_incubators']['egg_incubator']
@@ -936,16 +936,17 @@ class Client:
 
     @chain_api
     def use_item_capture(self, encounter_id, spawn_point_id):
-        if self.item[ItemId.Value('ITEM_RAZZ_BERRY')] > 0:
-            self._req.use_item_capture(
-                item_id=ItemId.Value('ITEM_RAZZ_BERRY'),
-                encounter_id=encounter_id,
-                spawn_point_id=spawn_point_id)
-            if not self._call():
-                self.use_item_capture(encounter_id, spawn_point_id)
-        else:
-            log.info('USE_ITEM_CAPTURE, out of berry :(')
-
+        for _ in range(3):
+            if self.item[ItemId.Value('ITEM_RAZZ_BERRY')] > 0:
+                self._req.use_item_capture(
+                    item_id=ItemId.Value('ITEM_RAZZ_BERRY'),
+                    encounter_id=encounter_id,
+                    spawn_point_id=spawn_point_id)
+                if self._call():
+                    break
+            else:
+                log.info('USE_ITEM_CAPTURE, out of berry :(')
+                break
     def _disk_encounter(self, encounter_id, fort_id):
         self._req.disk_encounter(
             encounter_id=encounter_id,
