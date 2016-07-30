@@ -940,7 +940,7 @@ class Client:
             self._req.use_item_capture(
                 item_id=ItemId.Value('ITEM_RAZZ_BERRY'),
                 encounter_id=encounter_id,
-                spawn_point_guid=spawn_point_id)
+                spawn_point_id=spawn_point_id)
             if not self._call():
                 self.use_item_capture(encounter_id, spawn_point_id)
         else:
