@@ -177,7 +177,6 @@ class Client:
 
         self.pokestop = {}
         self.wild_pokemon = []
-        self.cachable_pokemon = []
 
     def get_pokestop(self):
         return self.pokestop.values()
@@ -283,31 +282,6 @@ class Client:
 
             for wild_pokemon in map_cell['wild_pokemons']:
                 self.wild_pokemon.append(wild_pokemon)
-            # for wild_pokemon in map_cell['cachable_pokemons']:
-            #     self.cachable_pokemon.append(wild_pokemon)
-
-        # if 'GET_MAP_OBJECTS' in responses:
-        #     print '---------------WILD'
-        #     for pokemon in self.wild_pokemon:
-        #         print pokemon['encounter_id'],pokemon['spawn_point_id']
-        #     print '---------------CACHABLE'
-        #     for pokemon in self.wild_pokemon:
-        #         print pokemon['encounter_id'],pokemon['spawn_point_id']
-
-        #     print '------------------------------LURE'
-        #     for _, pokestop in self.pokestop.iteritems():
-        #         if 'lure_info' in pokestop:
-        #             print pokestop
-
-        # GET_HATCHED_EGGS
-        # if 'GET_HATCHED_EGGS' in responses:
-        #     if responses['GET_HATCHED_EGGS']['success'] is True:
-        #         if responses['GET_HATCHED_EGGS']['exp']:
-        #             log.info('GET_HATCHED_EGGS exp = {}'.format(
-        #                 responses['GET_HATCHED_EGGS']['experience_awarded']))
-        #     else:
-        #         log.warning('GET_HATCHED_EGGS {}'.format(
-        #                       responses['GET_HATCHED_EGGS']['success']))
 
         # FORT_SEARCH
         if responses['FORT_SEARCH']:
@@ -372,14 +346,13 @@ class Client:
 
         # DISK_ENCOUNTER
         if 'DISK_ENCOUNTER' in responses:
-            print responses['DISK_ENCOUNTER']
-            if responses['DISK_ENCOUNTER']['Result']:
+            if responses['DISK_ENCOUNTER']['result']:
                 log.info('DISK_ENCOUNTER = {}'.format(
-                    DiskEncounterResponse.Status.Name(responses['DISK_ENCOUNTER']['Result'])))
+                    DiskEncounterResponse.Result.Name(responses['DISK_ENCOUNTER']['result'])))
             else:
                 log.warning('DISK_ENCOUNTER = {}')
 
-            if responses['DISK_ENCOUNTER']['Result'] == 1:
+            if responses['DISK_ENCOUNTER']['result'] == 1:
                 pokemon = responses['DISK_ENCOUNTER']['pokemon_data']
                 self._calc_attr(pokemon)
                 log.info('DISK_ENCOUNTER = "{}", PROB = {}'.format(
@@ -390,7 +363,7 @@ class Client:
                     pokemon['max_cp'],
                     pokemon['family_id'])
             else:
-                if responses['DISK_ENCOUNTER']['Result'] == DiskEncounterResponse.Result.Value('POKEMON_INVENTORY_FULL'):
+                if responses['DISK_ENCOUNTER']['result'] == DiskEncounterResponse.Result.Value('POKEMON_INVENTORY_FULL'):
                     self.bulk_release_pokemon()
                 return (False, )
 
@@ -827,7 +800,7 @@ class Client:
         print 'RELEASE =', release_cnt
         print 'EVO =', evo_cnt
 
-        if total_cnt == self.profile['max_pokemon_storage'] - len(self.egg) and block_on_full:
+        if total_cnt - release_cnt >= self.profile['max_pokemon_storage'] - len(self.egg) and block_on_full:
             print '============== pokemon full, nothing to release'
             exit(0)
 
@@ -864,7 +837,6 @@ class Client:
     def scan(self):
 
         self.wild_pokemon = []
-        self.cachable_pokemon = []
 
         cell_ids = self._get_cell_ids()
         timestamps = [0, ] * len(cell_ids)
@@ -994,8 +966,8 @@ class Client:
     # Spin the pokestop
     @chain_api
     def fort_search(self, pokestop):
-        # if 'lure_info' in self.pokestop[pokestop['id']]:
-        #     self.disk_catch_pokemon(self.pokestop[pokestop['id']]['lure_info'])
+        if 'lure_info' in self.pokestop[pokestop['id']]:
+            self.disk_catch_pokemon(self.pokestop[pokestop['id']]['lure_info'])
 
         self._api.fort_search(
             fort_id=pokestop['id'],
