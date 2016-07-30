@@ -256,7 +256,7 @@ class Client:
     # Send request and parse response
     def _call(self):
 
-        time.sleep(0.2)
+        time.sleep(0.33)
         # Call api
         resp = self._api.call()
         log.debug('Response dictionary: \n\r{}'.format(
@@ -896,6 +896,8 @@ class Client:
 
         self._encounter(pokemon)
         ret = self._call()
+        if ret is None:
+            return
         if ret[0]:
             max_cp = ret[1]
             family_id = ret[2]
