@@ -897,42 +897,45 @@ class Client:
 
     def _choose_ball_and_catch(self, max_cp, family_id, encounter_id, spawn_point_id):
             ret = -1
-            while ret == -1 or ret == 2 or ret == 4:
-                if len(self.family[family_id]) == 0 or self.candy[family_id] < 200 or max_cp > 2500:
-                    self.use_item_capture(encounter_id, spawn_point_id)
-                    if self.item[ItemId.Value('ITEM_ULTRA_BALL')] > 0:
-                        pokeball = ItemId.Value('ITEM_ULTRA_BALL')
-                    elif self.item[ItemId.Value('ITEM_GREAT_BALL')] > 0:
-                        pokeball = ItemId.Value('ITEM_GREAT_BALL')
-                    elif self.item[ItemId.Value('ITEM_POKE_BALL')] > 0:
-                        pokeball = ItemId.Value('ITEM_POKE_BALL')
-                    else:
-                        log.warning('CATCH_POKEMON no balls!')
-                        return
-                else:
-                    if self.item[ItemId.Value('ITEM_RAZZ_BERRY')] > 30:
+            for _ in range(10)
+                if ret == -1 or ret == 2 or ret == 4:
+                    if len(self.family[family_id]) == 0 or self.candy[family_id] < 200 or max_cp > 2500:
                         self.use_item_capture(encounter_id, spawn_point_id)
-
-                    cnt_poke_ball = self.item[ItemId.Value('ITEM_POKE_BALL')]
-                    cnt_great_ball = self.item[ItemId.Value('ITEM_GREAT_BALL')]
-                    cnt_ultra_ball = self.item[ItemId.Value('ITEM_ULTRA_BALL')]
-
-                    if cnt_ultra_ball > 100:
-                        pokeball = ItemId.Value('ITEM_ULTRA_BALL')
-                    elif cnt_great_ball > 0 and cnt_great_ball + cnt_ultra_ball > 100:
-                        pokeball = ItemId.Value('ITEM_GREAT_BALL')
-                    elif cnt_poke_ball > 0:
-                        pokeball = ItemId.Value('ITEM_POKE_BALL')
-                    elif cnt_great_ball > 0:
-                        pokeball = ItemId.Value('ITEM_GREAT_BALL')
-                    elif cnt_ultra_ball > 0:
-                        pokeball = ItemId.Value('ITEM_ULTRA_BALL')
+                        if self.item[ItemId.Value('ITEM_ULTRA_BALL')] > 0:
+                            pokeball = ItemId.Value('ITEM_ULTRA_BALL')
+                        elif self.item[ItemId.Value('ITEM_GREAT_BALL')] > 0:
+                            pokeball = ItemId.Value('ITEM_GREAT_BALL')
+                        elif self.item[ItemId.Value('ITEM_POKE_BALL')] > 0:
+                            pokeball = ItemId.Value('ITEM_POKE_BALL')
+                        else:
+                            log.warning('CATCH_POKEMON no balls!')
+                            return
                     else:
-                        log.warning('CATCH_POKEMON no balls!')
-                        return
+                        if self.item[ItemId.Value('ITEM_RAZZ_BERRY')] > 30:
+                            self.use_item_capture(encounter_id, spawn_point_id)
 
-                self._catch_pokemon(pokeball, encounter_id, spawn_point_id)
-                ret = self._call()
+                        cnt_poke_ball = self.item[ItemId.Value('ITEM_POKE_BALL')]
+                        cnt_great_ball = self.item[ItemId.Value('ITEM_GREAT_BALL')]
+                        cnt_ultra_ball = self.item[ItemId.Value('ITEM_ULTRA_BALL')]
+
+                        if cnt_ultra_ball > 100:
+                            pokeball = ItemId.Value('ITEM_ULTRA_BALL')
+                        elif cnt_great_ball > 0 and cnt_great_ball + cnt_ultra_ball > 100:
+                            pokeball = ItemId.Value('ITEM_GREAT_BALL')
+                        elif cnt_poke_ball > 0:
+                            pokeball = ItemId.Value('ITEM_POKE_BALL')
+                        elif cnt_great_ball > 0:
+                            pokeball = ItemId.Value('ITEM_GREAT_BALL')
+                        elif cnt_ultra_ball > 0:
+                            pokeball = ItemId.Value('ITEM_ULTRA_BALL')
+                        else:
+                            log.warning('CATCH_POKEMON no balls!')
+                            return
+
+                    self._catch_pokemon(pokeball, encounter_id, spawn_point_id)
+                    ret = self._call()
+                else:
+                    break
 
     @chain_api
     def use_item_capture(self, encounter_id, spawn_point_id):
