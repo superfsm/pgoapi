@@ -30,6 +30,7 @@ import getpass
 import time
 import webbrowser
 import sys
+import traceback
 
 from client import Client
 from pgoapi.exceptions import NotLoggedInException
@@ -38,6 +39,13 @@ from geopy.geocoders import GoogleV3
 from ortools.constraint_solver import pywrapcp
 # You need to import routing_enums_pb2 after pywrapcp!
 from geopy.distance import great_circle
+import numpy as np
+
+from sklearn.cluster import DBSCAN
+from sklearn import metrics
+from sklearn.datasets.samples_generator import make_blobs
+from sklearn.preprocessing import StandardScaler
+import matplotlib.pyplot as plt
 
 log = logging.getLogger(__name__)
 
@@ -56,6 +64,55 @@ consoleHandler.setLevel(logging.INFO)
 logging.getLogger(__name__).addHandler(consoleHandler)
 logging.getLogger('client').addHandler(consoleHandler)
 
+class Cluster():
+
+    def __init__(self, lst):
+        self.lst = lst
+        print 'Pokestop = ', len(self.lst)
+
+    def solve(self):
+        X = []
+        for p in self.lst:
+            X.append([p['latitude'], p['longitude']])
+        X = np.array(X)
+
+        db = DBSCAN(eps=0.001, min_samples=2).fit(X)
+        core_samples_mask = np.zeros_like(db.labels_, dtype=bool)
+        core_samples_mask[db.core_sample_indices_] = True
+        labels = db.labels_
+
+        # Number of clusters in labels, ignoring noise if present.
+        n_clusters_ = len(set(labels)) - (1 if -1 in labels else 0)
+
+        unique_labels = set(labels)
+        colors = plt.cm.Spectral(np.linspace(0, 1, len(unique_labels)))
+        _max = 0
+        _k = -1
+        for k, col in zip(unique_labels, colors):
+            if k == -1:
+                # Black used for noise.
+                col = 'k'
+
+            class_member_mask = (labels == k)
+
+            xy = X[class_member_mask & core_samples_mask]
+            plt.plot(xy[:, 0], xy[:, 1], 'o', markerfacecolor=col,
+                     markeredgecolor='k', markersize=14)
+            if len(xy) > _max:
+                _max = len(xy)
+                _k = class_member_mask & core_samples_mask
+
+            xy = X[class_member_mask & ~core_samples_mask]
+            plt.plot(xy[:, 0], xy[:, 1], 'o', markerfacecolor=col,
+                     markeredgecolor='k', markersize=6)
+
+        plt.title('Estimated number of clusters: %d' % n_clusters_)
+        plt.show()
+        ret = []
+        for i in range(len(_k)):
+            if _k[i]:
+                ret.append(self.lst[i])
+        return ret
 
 class TSP(object):
     """Create callback to calculate distances between points."""
@@ -233,16 +290,19 @@ def main():
             # client.scan().bulk_release_pokemon()
             # client.scan().bulk_evolve_pokemon(dry=False)
             # exit(1)
+
             if start_exp == 0:
                 start_exp = client.profile['experience']
                 start_pokemon = client.profile['pokemons_captured']
                 start_pokestop = client.profile['poke_stop_visits']
 
-            if evolve:
-                client.bulk_evolve_pokemon(dry=False)
-                for pokemon_id in evolve_list:
-                    client.manual_evolve_pokemon(pokemon_id, dry=False)
-            sorted_pokestops = TSP(client.get_pokestop()).solve()
+            # if evolve:
+            #     client.bulk_evolve_pokemon(dry=False)
+            #     for pokemon_id in evolve_list:
+            #         client.manual_evolve_pokemon(pokemon_id, dry=False)
+            clustered_pokestops = Cluster(client.get_pokestop()).solve()
+            sorted_pokestops = TSP(clustered_pokestops).solve()
+
             if not map_showed:
                 show_map(sorted_pokestops, [])
                 map_showed = True
@@ -267,7 +327,9 @@ def main():
         except SystemExit:
             break
         except:
-            print "Exeption:", sys.exc_info()[0]
+            exc_info = sys.exc_info()
+            traceback.print_exception(*exc_info)
+            # exit(1)
             continue
 
         print 'Loop finished, sleeping 30s'
