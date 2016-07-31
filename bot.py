@@ -232,6 +232,7 @@ def main():
             # client.use_item_xp_boost()
             # client.scan().bulk_release_pokemon()
             # client.scan().bulk_evolve_pokemon(dry=False)
+            # exit(1)
             if start_exp == 0:
                 start_exp = client.profile['experience']
                 start_pokemon = client.profile['pokemons_captured']
@@ -261,6 +262,10 @@ def main():
                 auth_token = None
             print 'NotLoggedInException, continue'
             continue
+        except KeyboardInterrupt:
+            break
+        except SystemExit:
+            break
         except:
             print "Exeption:", sys.exc_info()[0]
             continue

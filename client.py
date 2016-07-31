@@ -29,6 +29,7 @@ import pprint
 import time
 import csv
 import numpy as np
+import os
 from collections import defaultdict
 
 from pgoapi import PGoApi
@@ -825,7 +826,7 @@ class Client:
 
         if total_cnt - release_cnt >= self.profile['max_pokemon_storage'] - len(self.egg) and block_on_full:
             print '============== pokemon full, nothing to release'
-            exit(0)
+            os._exit(1)
 
     @chain_api
     def summary(self):
