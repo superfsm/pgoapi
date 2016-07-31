@@ -107,7 +107,7 @@ class Cluster():
                      markeredgecolor='k', markersize=6)
 
         plt.title('Estimated number of clusters: %d' % n_clusters_)
-        plt.show()
+        # plt.show()
         ret = []
         for i in range(len(_k)):
             if _k[i]:
@@ -332,8 +332,8 @@ def main():
             # exit(1)
             continue
 
-        print 'Loop finished, sleeping 30s'
-        time.sleep(30)
+        print 'Loop finished, sleep for 10s'
+        time.sleep(10)
 
 
 if __name__ == '__main__':
