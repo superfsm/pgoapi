@@ -289,6 +289,7 @@ def main():
             # client.use_item_xp_boost()
             # client.scan().bulk_release_pokemon()
             # client.scan().bulk_evolve_pokemon(dry=False)
+            # client.scan().bulk_evolve_pokemon(dry=False)
             # exit(1)
 
             if start_exp == 0:
